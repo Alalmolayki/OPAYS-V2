@@ -1,0 +1,310 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design tokens ───────────────────────────────────────────── */
+:root {
+  --c-base:            #07101f;
+  --c-sidebar:         #080e1c;
+  --c-card:            #0f1d30;
+  --c-card-hover:      #122040;
+  --c-elevated:        #0d1826;
+  --c-input-bg:        rgba(15, 23, 42, 0.6);
+  --c-border:          rgba(30, 41, 59, 0.6);
+  --c-border-md:       rgba(51, 65, 85, 0.6);
+  --c-text:            #f1f5f9;
+  --c-text-muted:      #94a3b8;
+  --c-text-subtle:     #64748b;
+  --c-btn-sec-bg:      #1e293b;
+  --c-btn-sec-text:    #f1f5f9;
+  --c-btn-sec-border:  #334155;
+  --c-scrollbar:       #334155;
+}
+
+.light {
+  --c-base:            #f0f4f8;
+  --c-card:            #ffffff;
+  --c-card-hover:      #f8fafc;
+  --c-elevated:        #f1f5f9;
+  --c-input-bg:        #f8fafc;
+  --c-border:          rgba(226, 232, 240, 0.9);
+  --c-border-md:       rgba(203, 213, 225, 0.8);
+  --c-text:            #0f172a;
+  --c-text-muted:      #475569;
+  --c-text-subtle:     #94a3b8;
+  --c-btn-sec-bg:      #e2e8f0;
+  --c-btn-sec-text:    #1e293b;
+  --c-btn-sec-border:  #cbd5e1;
+  --c-scrollbar:       #cbd5e1;
+}
+
+/* ─── Base ─────────────────────────────────────────────────────── */
+@layer base {
+  * { box-sizing: border-box; }
+
+  body {
+    @apply font-sans antialiased;
+    background-color: var(--c-base);
+    color: var(--c-text);
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(6, 182, 212, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.03) 0%, transparent 50%);
+    min-height: 100vh;
+    transition: background-color 0.2s, color 0.2s;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--c-scrollbar); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { opacity: 0.8; }
+}
+
+/* ─── Components ───────────────────────────────────────────────── */
+@layer components {
+  .card {
+    background-color: var(--c-card);
+    border: 1px solid var(--c-border);
+    @apply rounded-xl;
+    transition: background-color 0.2s, border-color 0.2s;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200;
+  }
+  .card-hover:hover {
+    background-color: var(--c-card-hover);
+    border-color: var(--c-border-md);
+  }
+
+  .btn-primary {
+    @apply bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg
+           transition-all duration-150 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    background-color: var(--c-btn-sec-bg);
+    color: var(--c-btn-sec-text);
+    border: 1px solid var(--c-btn-sec-border);
+    @apply font-medium px-4 py-2 rounded-lg transition-all duration-150 flex items-center gap-2;
+  }
+  .btn-secondary:hover {
+    opacity: 0.85;
+  }
+
+  .btn-danger {
+    @apply bg-red-500/10 hover:bg-red-500/20 text-red-400 font-medium px-4 py-2 rounded-lg
+           transition-all duration-150 border border-red-500/20 flex items-center gap-2;
+  }
+
+  .input {
+    background-color: var(--c-input-bg);
+    border: 1px solid var(--c-border-md);
+    color: var(--c-text);
+    @apply w-full rounded-lg px-3 py-2.5 placeholder:text-slate-500
+           focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-colors text-sm;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .input:focus { border-color: rgba(6, 182, 212, 0.6); }
+
+  .label {
+    color: var(--c-text-muted);
+    @apply block text-sm font-medium mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100
+           hover:bg-slate-800/60 transition-all duration-150 text-sm font-medium cursor-pointer;
+  }
+  .sidebar-link.active {
+    @apply bg-cyan-500/10 text-cyan-400 border border-cyan-500/20;
+  }
+
+  .stat-card { @apply card p-4 flex flex-col gap-1; }
+
+  .glow-cyan  { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15); }
+  .glow-text  { text-shadow: 0 0 20px rgba(6, 182, 212, 0.4); }
+}
+
+/* ─── Utilities ────────────────────────────────────────────────── */
+@layer utilities {
+  .animate-fade-in  { animation: fadeIn 0.3s ease-in-out; }
+  .animate-slide-up { animation: slideUp 0.35s ease-out; }
+
+  @keyframes fadeIn  { from { opacity:0 } to { opacity:1 } }
+  @keyframes slideUp { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:translateY(0) } }
+  @keyframes shrink  { from { width:100% } to { width:0% } }
+}
+
+/* ─── Light-mode overrides for Tailwind arbitrary/slate classes ── */
+/* Only the main content area (.lm-content) gets these; sidebar stays dark. */
+
+.lm-content .text-white          { color: #0f172a !important; }
+.lm-content .text-slate-100      { color: #1e293b !important; }
+.lm-content .text-slate-200      { color: #334155 !important; }
+.lm-content .text-slate-300      { color: #475569 !important; }
+.lm-content .text-slate-400      { color: #64748b !important; }
+.lm-content .text-slate-500      { color: #94a3b8 !important; }
+.lm-content .text-slate-600      { color: #94a3b8 !important; }
+
+/* Hardcoded BG colours that appear in JSX — use attribute selectors to avoid escape issues */
+.lm-content [class*="bg-[#0f1d30]"] { background-color: #ffffff !important; }
+.lm-content [class*="bg-[#122040]"] { background-color: #f8fafc !important; }
+.lm-content [class*="bg-[#0d1826]"] { background-color: #f1f5f9 !important; }
+.lm-content [class*="bg-[#07101f]"] { background-color: #f0f4f8 !important; }
+
+/* Dashboard hero gradient — neutralise dark from/to classes in light mode */
+.lm-content [class*="from-[#0f1d30]"] {
+  background-image: linear-gradient(to right, #f0f4f8, #e2e8f0) !important;
+}
+.lm-content [class*="from-[#0d1626]"],
+.lm-content [class*="to-[#0d1626]"]  {
+  background-image: linear-gradient(to right, #f0f4f8, #e2e8f0) !important;
+}
+
+/* Slate utility BGs */
+.lm-content .bg-slate-900\/40,
+.lm-content .bg-slate-900\/60    { background-color: #f1f5f9 !important; }
+.lm-content .bg-slate-800\/20,
+.lm-content .bg-slate-800\/40,
+.lm-content .bg-slate-800\/60,
+.lm-content .bg-slate-800\/80    { background-color: #e2e8f0 !important; }
+.lm-content .bg-slate-800        { background-color: #e2e8f0 !important; }
+.lm-content .bg-slate-700\/60    { background-color: #cbd5e1 !important; }
+
+/* Borders */
+.lm-content .border-slate-800\/60,
+.lm-content .border-slate-800    { border-color: #e2e8f0 !important; }
+.lm-content .border-slate-700\/60,
+.lm-content .border-slate-700    { border-color: #cbd5e1 !important; }
+.lm-content .border-slate-600    { border-color: #94a3b8 !important; }
+
+/* Sticky table headers */
+.lm-content thead.sticky th,
+.lm-content .sticky            { background-color: #f8fafc !important; }
+
+/* Neutral badge overrides */
+.lm-content .bg-slate-700\/60.text-slate-400 {
+  background-color: #e2e8f0 !important;
+  color: #475569 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Mobile header — keep it dark regardless of theme */
+.lm-header { background-color: var(--c-sidebar) !important; }
+.lm-header * { color: inherit; }
+
+/* ─── Light-mode: additional contrast & readability fixes ─────── */
+
+/* Cyan accent — darken for readability on white */
+.lm-content .text-cyan-400  { color: #0891b2 !important; }
+.lm-content .text-cyan-300  { color: #0e7490 !important; }
+.lm-content .text-cyan-500  { color: #0891b2 !important; }
+
+/* Amber / green / red accents — darken slightly */
+.lm-content .text-amber-400 { color: #b45309 !important; }
+.lm-content .text-green-400 { color: #16a34a !important; }
+.lm-content .text-red-400   { color: #dc2626 !important; }
+.lm-content .text-purple-400{ color: #7c3aed !important; }
+.lm-content .text-blue-400  { color: #2563eb !important; }
+.lm-content .text-orange-400{ color: #c2410c !important; }
+.lm-content .text-pink-400  { color: #db2777 !important; }
+
+/* Cyan badge backgrounds */
+.lm-content .bg-cyan-500\/15,
+.lm-content .bg-cyan-500\/10 { background-color: #e0f9ff !important; }
+.lm-content .bg-cyan-500\/20 { background-color: #cffafe !important; }
+
+/* Amber badge */
+.lm-content .bg-amber-500\/15,
+.lm-content .bg-amber-500\/10 { background-color: #fef3c7 !important; }
+
+/* Green badge */
+.lm-content .bg-green-500\/15,
+.lm-content .bg-green-500\/10 { background-color: #dcfce7 !important; }
+
+/* Red badge */
+.lm-content .bg-red-500\/15,
+.lm-content .bg-red-500\/10  { background-color: #fee2e2 !important; }
+
+/* Blue badge */
+.lm-content .bg-blue-500\/15,
+.lm-content .bg-blue-500\/10 { background-color: #dbeafe !important; }
+
+/* Purple badge */
+.lm-content .bg-purple-500\/15,
+.lm-content .bg-purple-500\/10{ background-color: #ede9fe !important; }
+
+/* Orange badge */
+.lm-content .bg-orange-500\/15{ background-color: #ffedd5 !important; }
+
+/* Gradient logo/avatar backgrounds — keep them (they're on colored elements, not BG) */
+
+/* Mono/code text */
+.lm-content .font-mono       { color: inherit; }
+
+/* Slate glow text */
+.lm-content .text-slate-700 { color: #64748b !important; }
+
+/* bg-slate-700 (non-opacity variant — used for active tab background) */
+.lm-content .bg-slate-700        { background-color: #cbd5e1 !important; }
+
+/* bg-slate-600/60 (used for count badges in tabs) */
+.lm-content .bg-slate-600\/60    { background-color: #e2e8f0 !important; }
+
+/* Hardcoded dark border on stacked avatars */
+.lm-content [class*="border-[#0f1d30]"] { border-color: var(--c-card) !important; }
+
+/* Border cyan */
+.lm-content .border-cyan-500\/20,
+.lm-content .border-cyan-500\/30 { border-color: #a5f3fc !important; }
+
+/* Border amber/green/red  */
+.lm-content .border-amber-500\/20 { border-color: #fde68a !important; }
+.lm-content .border-green-500\/20 { border-color: #bbf7d0 !important; }
+.lm-content .border-red-500\/20   { border-color: #fecaca !important; }
+
+/* Sidebar link active on content side (shouldn't appear — but guard) */
+.lm-content .sidebar-link.active { background-color: #e0f9ff !important; }
+
+/* btn-primary keeps cyan — already fine, just ensure text stays dark */
+.lm-content .btn-primary     { color: #0f172a !important; }
+
+/* ─── Light-mode sidebar ─────────────────────────────────────── */
+.lm-sidebar {
+  background-color: #f8fafc !important;
+  border-right-color: #e2e8f0 !important;
+}
+.lm-sidebar .text-white       { color: #0f172a !important; }
+.lm-sidebar .text-slate-100   { color: #1e293b !important; }
+.lm-sidebar .text-slate-200   { color: #334155 !important; }
+.lm-sidebar .text-slate-300   { color: #475569 !important; }
+.lm-sidebar .text-slate-400   { color: #64748b !important; }
+.lm-sidebar .text-slate-500   { color: #94a3b8 !important; }
+.lm-sidebar .text-cyan-400    { color: #0891b2 !important; }
+.lm-sidebar .text-amber-400   { color: #d97706 !important; }
+.lm-sidebar .text-red-400     { color: #dc2626 !important; }
+
+.lm-sidebar .sidebar-link          { color: #64748b !important; }
+.lm-sidebar .sidebar-link:hover    { color: #0f172a !important; background-color: #f1f5f9 !important; }
+.lm-sidebar .sidebar-link.active   { background-color: #e0f9ff !important; color: #0891b2 !important; border-color: #a5f3fc !important; }
+
+.lm-sidebar .bg-slate-800\/60,
+.lm-sidebar .bg-slate-800      { background-color: #f1f5f9 !important; }
+.lm-sidebar .bg-slate-700\/60,
+.lm-sidebar .bg-slate-700      { background-color: #e2e8f0 !important; }
+.lm-sidebar .border-slate-800\/60,
+.lm-sidebar .border-slate-800  { border-color: #e2e8f0 !important; }
+.lm-sidebar .border-slate-700\/60,
+.lm-sidebar .border-slate-700  { border-color: #e2e8f0 !important; }
+.lm-sidebar [class*="bg-[#0d1826]"],
+.lm-sidebar [class*="bg-[#080e1c]"] { background-color: #f8fafc !important; }
+.lm-sidebar [class*="border-[#0f1d30]"] { border-color: #e2e8f0 !important; }
+.lm-sidebar .hover\:bg-slate-800:hover { background-color: #e2e8f0 !important; }
+
+/* Progress bars — keep gradient */
+/* (gradient classes have no direct color utility override needed) */
+
