@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Search, UserPlus, Lock, Megaphone, Trash2, X } from 'lucide-react';
+import { Users, Plus, Search, UserPlus, Lock, Megaphone, Trash2, X, GraduationCap } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { avatarGradient } from '../utils/avatar';
 
@@ -26,6 +26,9 @@ export default function TeamsPage() {
   // Captain search state for create modal
   const [captainSearch, setCaptainSearch] = useState('');
   const [selectedCaptain, setSelectedCaptain] = useState<{ id: string; label: string } | null>(null);
+  // Advisor search state for create modal
+  const [advisorSearch, setAdvisorSearch] = useState('');
+  const [selectedAdvisor, setSelectedAdvisor] = useState<{ id: string; label: string } | null>(null);
   // Initial members for create modal
   const [createMembers, setCreateMembers] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState('');
@@ -33,6 +36,15 @@ export default function TeamsPage() {
 
   // School students & captains that admin can assign as captain
   const schoolStudents = users.filter(u => u.schoolId === selectedSchoolId && u.role === 'student');
+  const schoolTeachers = users.filter(u => u.schoolId === selectedSchoolId && u.role === 'branch_teacher');
+  // Live search results for advisor input
+  const advisorSearchResults = advisorSearch.trim().length >= 1
+    ? schoolTeachers.filter(u => {
+        const q = advisorSearch.toLowerCase();
+        return u.firstName.toLowerCase().includes(q) || u.lastName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
+      }).slice(0, 8)
+    : [];
+
   // Live search results for captain input
   const captainSearchResults = captainSearch.trim().length >= 1
     ? schoolStudents.filter(u => {
@@ -75,6 +87,8 @@ export default function TeamsPage() {
     setForm({ name: '', type: 'robotics', customType: '', description: '', captainId: '' });
     setCaptainSearch('');
     setSelectedCaptain(null);
+    setAdvisorSearch('');
+    setSelectedAdvisor(null);
     setCreateMembers([]);
     setMemberSearch('');
     setShowMemberSearch(false);
@@ -91,6 +105,7 @@ export default function TeamsPage() {
       name: form.name,
       type: resolvedType,
       captainId,
+      advisorId: selectedAdvisor?.id || undefined,
       description: form.description,
       logoInitials: form.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
       logoColor: gradients[Math.floor(Math.random() * gradients.length)],
@@ -98,7 +113,7 @@ export default function TeamsPage() {
       isRecruiting: false,
       schoolId: selectedSchoolId,
       ...(createMembers.length > 0 ? { initialMembers: createMembers } as any : {}),
-    });
+    } as any);
     resetCreateForm();
   };
 
@@ -219,6 +234,7 @@ export default function TeamsPage() {
                 </div>
                 <span className="text-xs text-slate-500">{team.members.length} üye</span>
                 {captain && <span className="text-xs text-slate-600">· Kpt: {captain.firstName}</span>}
+                {(() => { const adv = team.advisorId ? users.find(u => u.id === team.advisorId) : null; return adv ? <span className="text-xs text-blue-400 ml-1">· Dan: {adv.firstName} {adv.lastName}</span> : null; })()}
               </div>
 
               {/* Actions */}
@@ -256,7 +272,7 @@ export default function TeamsPage() {
 
       {/* Create Team Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-md p-6 animate-slide-up">
             <h2 className="text-lg font-bold text-white mb-5">Yeni Takım Oluştur</h2>
             <form onSubmit={handleCreate} className="space-y-4">
@@ -350,6 +366,50 @@ export default function TeamsPage() {
                   )}
                 </div>
               )}
+              {/* Advisor teacher picker */}
+              {canPickCaptain && (
+                <div>
+                  <label className="label flex items-center gap-1.5"><GraduationCap size={13} /> Danışman Öğretmen <span className="text-slate-600 font-normal">(opsiyonel)</span></label>
+                  {selectedAdvisor ? (
+                    <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${avatarGradient(selectedAdvisor.id)}`}>
+                        {selectedAdvisor.label.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                      </div>
+                      <span className="text-sm text-white flex-1 truncate">{selectedAdvisor.label}</span>
+                      <button type="button" onClick={() => { setSelectedAdvisor(null); setAdvisorSearch(''); }} className="text-slate-500 hover:text-red-400 transition-colors flex-shrink-0">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="text"
+                        value={advisorSearch}
+                        onChange={e => setAdvisorSearch(e.target.value)}
+                        className="input pl-9"
+                        placeholder="Branş öğretmeni ara..."
+                      />
+                      {advisorSearchResults.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d1826] border border-slate-700/60 rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto">
+                          {advisorSearchResults.map(u => (
+                            <button key={u.id} type="button"
+                              onClick={() => { setSelectedAdvisor({ id: u.id, label: `${u.firstName} ${u.lastName}` }); setAdvisorSearch(''); }}
+                              className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-800/60 transition-colors"
+                            >
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${avatarGradient(u.id)}`}>
+                                {u.firstName[0]}{u.lastName[0]}
+                              </div>
+                              <p className="text-sm text-white">{u.firstName} {u.lastName}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Initial members */}
               <div>
                 <div className="flex items-center justify-between mb-2">

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Upload, FileText, Download, CheckCircle, AlertCircle, Plus, Trash2, X, Loader2, Search } from 'lucide-react';
+// CSV support intentionally removed — only e-okul PDF and manual entry
 import { useStore } from '../store/useStore';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -17,7 +18,7 @@ function pdfSafe(str: string): string {
   );
 }
 
-interface CsvRow {
+interface StudentRow {
   studentName: string;
   studentNo: string;
   class: string;
@@ -29,14 +30,15 @@ export default function ImportPage() {
   const codes = allCodes.filter(c => c.schoolId === selectedSchoolId);
   const currentSchool = schools.find(s => s.id === selectedSchoolId);
   const [dragging, setDragging] = useState(false);
-  const [preview, setPreview] = useState<CsvRow[]>([]);
+  const [preview, setPreview] = useState<StudentRow[]>([]);
   const [imported, setImported] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [manualRows, setManualRows] = useState<CsvRow[]>([{ studentName: '', studentNo: '', class: '', section: '' }]);
+  const [manualRows, setManualRows] = useState<StudentRow[]>([{ studentName: '', studentNo: '', class: '', section: '' }]);
   const [activeSession, setActiveSession] = useState<string>('all');
   const [downloadClass, setDownloadClass] = useState<string>('all');
   const [codeSearch, setCodeSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'unused' | 'used'>('all');
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Group codes by session
@@ -52,15 +54,18 @@ export default function ImportPage() {
   })();
 
   const sessionCodes = activeSession === 'all' ? codes : codes.filter(c => c.sessionId === activeSession);
+  const statusFiltered = statusFilter === 'unused' ? sessionCodes.filter(c => !c.isUsed)
+    : statusFilter === 'used' ? sessionCodes.filter(c => c.isUsed)
+    : sessionCodes;
   const searchTerm = codeSearch.trim().toLowerCase();
   const displayedCodes = searchTerm
-    ? sessionCodes.filter(c =>
+    ? statusFiltered.filter(c =>
         c.studentName.toLowerCase().includes(searchTerm) ||
         c.code.toLowerCase().includes(searchTerm) ||
         `${c.class}/${c.section}`.toLowerCase().includes(searchTerm) ||
         c.studentNo?.toLowerCase().includes(searchTerm)
       )
-    : sessionCodes;
+    : statusFiltered;
   // Sort: Hazırlık first, then numeric classes (9→10→11→12), then alphabetical within same class
   const sortClasses = (a: string, b: string) => {
     const rank = (s: string) => {
@@ -74,31 +79,6 @@ export default function ImportPage() {
     return a.localeCompare(b, 'tr');
   };
   const uniqueClasses = [...new Set(sessionCodes.map(c => `${c.class}/${c.section}`).filter(Boolean))].sort(sortClasses);
-
-  const parseCsv = (text: string) => {
-    const lines = text.trim().split('\n').filter(Boolean);
-    const dataLines = lines[0].toLowerCase().includes('ad') ? lines.slice(1) : lines;
-    return dataLines.map(line => {
-      const cols = line.split(',').map(c => c.trim().replace(/"/g, ''));
-      return { studentName: cols[0] || '', studentNo: cols[1] || '', class: cols[2] || '', section: cols[3] || '' };
-    }).filter(r => r.studentName && r.studentNo);
-  };
-
-  const handleCsvFile = (file: File) => {
-    setError('');
-    setImported(false);
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const rows = parseCsv(e.target?.result as string);
-        if (rows.length === 0) { setError('CSV dosyasında geçerli öğrenci satırı bulunamadı.'); return; }
-        setPreview(rows);
-      } catch {
-        setError('CSV dosyası okunamadı. Lütfen formatı kontrol edin.');
-      }
-    };
-    reader.readAsText(file, 'utf-8');
-  };
 
   const handlePdfFile = async (file: File) => {
     setError('');
@@ -121,10 +101,8 @@ export default function ImportPage() {
   const handleFile = (file: File) => {
     if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
       handlePdfFile(file);
-    } else if (file.name.toLowerCase().endsWith('.csv') || file.type === 'text/csv') {
-      handleCsvFile(file);
     } else {
-      setError('Lütfen CSV veya e-okul PDF dosyası yükleyin.');
+      setError('Lütfen e-okul PDF dosyası yükleyin.');
     }
   };
 
@@ -143,17 +121,6 @@ export default function ImportPage() {
     setImported(true);
     setPreview([]);
     setManualRows([{ studentName: '', studentNo: '', class: '', section: '' }]);
-  };
-
-  const downloadTemplate = () => {
-    const csv = 'Ad Soyad,Öğrenci No,Sınıf,Şube\nAhmet Yılmaz,S009,9,A\nFatma Çelik,S010,9,B';
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'opays_template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const downloadCodes = (classFilter: string) => {
@@ -231,25 +198,25 @@ export default function ImportPage() {
             <span className="badge bg-slate-800 text-slate-400 border border-slate-700">{currentSchool.name}</span>
           )}
         </div>
-        <button onClick={downloadTemplate} className="btn-secondary">
-          <Download size={16} /> Şablon İndir
-        </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="card p-4 text-center">
+        <button onClick={() => setStatusFilter('all')}
+          className={`card p-4 text-center transition-colors ${statusFilter === 'all' ? 'border-cyan-500/40 bg-cyan-500/5' : 'hover:border-slate-700/80'}`}>
           <p className="text-2xl font-bold text-white">{codes.length}</p>
           <p className="text-xs text-slate-500 mt-0.5">Toplam Kod</p>
-        </div>
-        <div className="card p-4 text-center">
+        </button>
+        <button onClick={() => setStatusFilter(statusFilter === 'unused' ? 'all' : 'unused')}
+          className={`card p-4 text-center transition-colors ${statusFilter === 'unused' ? 'border-green-500/40 bg-green-500/5' : 'hover:border-slate-700/80'}`}>
           <p className="text-2xl font-bold text-green-400">{codes.filter(c => !c.isUsed).length}</p>
           <p className="text-xs text-slate-500 mt-0.5">Kullanılmayan</p>
-        </div>
-        <div className="card p-4 text-center">
+        </button>
+        <button onClick={() => setStatusFilter(statusFilter === 'used' ? 'all' : 'used')}
+          className={`card p-4 text-center transition-colors ${statusFilter === 'used' ? 'border-slate-500/40 bg-slate-500/5' : 'hover:border-slate-700/80'}`}>
           <p className="text-2xl font-bold text-slate-400">{codes.filter(c => c.isUsed).length}</p>
           <p className="text-xs text-slate-500 mt-0.5">Kullanılan</p>
-        </div>
+        </button>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -272,15 +239,14 @@ export default function ImportPage() {
             ) : (
               <>
                 <FileText size={32} className="mx-auto text-slate-600 mb-3" />
-                <p className="text-slate-300 font-medium mb-1">CSV veya e-okul PDF Sürükle & Bırak</p>
-                <p className="text-xs text-slate-500">veya tıklayarak seç · CSV / PDF</p>
+                <p className="text-slate-300 font-medium mb-1">e-okul PDF Sürükle & Bırak</p>
+                <p className="text-xs text-slate-500">veya tıklayarak seç</p>
                 <div className="flex items-center justify-center gap-2 mt-2">
-                  <span className="text-xs bg-slate-800 text-slate-400 border border-slate-700 rounded px-2 py-0.5">.csv</span>
                   <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded px-2 py-0.5">.pdf e-okul</span>
                 </div>
               </>
             )}
-            <input ref={fileRef} type="file" accept=".csv,.pdf" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
           </div>
 
           {error && (

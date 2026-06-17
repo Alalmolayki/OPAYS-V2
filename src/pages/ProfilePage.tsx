@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCircle, Lock, Phone, Tag, Save, Eye, EyeOff, RefreshCw, Bell, Instagram, School, GraduationCap, Archive, ChevronRight, Mail, CheckSquare, Square } from 'lucide-react';
+import { UserCircle, Lock, Phone, Tag, Save, Eye, EyeOff, Bell, Instagram, School, GraduationCap, Archive, ChevronRight, Mail, CheckSquare, Square, Camera } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -18,14 +18,13 @@ const formatPhone = (raw: string) => {
 export default function ProfilePage() {
   const navigate = useNavigate();
   const {
-    currentUser, updateUser, resetToDefaults, notifications, markNotificationRead,
+    currentUser, updateUser, notifications, markNotificationRead,
     schools, selectedSchoolId, runtimePasswords, changePassword, graduates, saveGraduate,
     fixedAssets, fixedAssetAssignments,
   } = useStore();
   if (!currentUser) return null;
 
   const isSuperAdmin = currentUser.role === 'superadmin';
-  const isAdmin = ['superadmin', 'admin'].includes(currentUser.role);
   const isGraduate = currentUser.role === 'graduate';
   const school = schools.find(s => s.id === selectedSchoolId);
 
@@ -54,7 +53,7 @@ export default function ProfilePage() {
   const [pwdError, setPwdError] = useState('');
   const [pwdSuccess, setPwdSuccess] = useState(false);
 
-  const [showReset, setShowReset] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Graduate-specific state — initialized from myGraduate (computed above)
   const [gradUniversity, setGradUniversity] = useState(myGraduate?.university || '');
@@ -127,8 +126,30 @@ export default function ProfilePage() {
       {/* Profile summary */}
       <div className="card p-5">
         <div className="flex items-center gap-4">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl glow-cyan flex-shrink-0 ${avatarGradient(currentUser.id)}`}>
-            {currentUser.firstName[0]}{currentUser.lastName[0]}
+          <div className="relative flex-shrink-0 group">
+            {currentUser.photoUrl ? (
+              <img src={currentUser.photoUrl} alt="Profil" className="w-16 h-16 rounded-2xl object-cover glow-cyan" />
+            ) : (
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl glow-cyan ${avatarGradient(currentUser.id)}`}>
+                {currentUser.firstName[0]}{currentUser.lastName[0]}
+              </div>
+            )}
+            <input ref={photoInputRef} type="file" accept="image/*" className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onloadend = () => updateUser(currentUser.id, { photoUrl: reader.result as string });
+                reader.readAsDataURL(file);
+              }}
+            />
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+              title="Fotoğraf değiştir"
+            >
+              <Camera size={18} className="text-white" />
+            </button>
           </div>
           <div>
             <h2 className="text-xl font-bold text-white">{currentUser.firstName} {currentUser.lastName}</h2>
@@ -274,6 +295,7 @@ export default function ProfilePage() {
                   value={formatPhone(phone)}
                   onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                   className="input flex-1 font-mono"
+                  style={{ color: 'var(--c-text)' }}
                   placeholder="5XX XXX XX XX"
                 />
               </div>
@@ -437,26 +459,6 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Admin reset */}
-      {isAdmin && (
-        <div className="card p-6">
-          <h2 className="font-semibold text-white mb-2 flex items-center gap-2">
-            <RefreshCw size={16} className="text-red-400" /> Sistem Sıfırlama
-          </h2>
-          <p className="text-sm text-slate-400 mb-4">Demo verilerine sıfırlar. Geri alınamaz.</p>
-          {!showReset ? (
-            <button onClick={() => setShowReset(true)} className="btn-danger w-full justify-center">Demo Verilerine Sıfırla</button>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-red-400 font-medium">Emin misiniz?</p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowReset(false)} className="btn-secondary flex-1 justify-center">İptal</button>
-                <button onClick={() => { resetToDefaults(); setShowReset(false); }} className="btn-danger flex-1 justify-center">Sıfırla</button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

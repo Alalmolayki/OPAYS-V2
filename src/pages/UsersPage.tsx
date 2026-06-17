@@ -40,7 +40,7 @@ const genPassword = () => {
 };
 
 export default function UsersPage() {
-  const { currentUser, users, schools, selectedSchoolId, updateUser, deleteUser, resetUserProfile, watchList, addToWatchList, createRegistrationCode, graduates, changePassword } = useStore();
+  const { currentUser, users, teams, selectedSchoolId, updateUser, deleteUser, resetUserProfile, watchList, addToWatchList, createRegistrationCode, graduates, changePassword } = useStore();
 
   const isSuper = currentUser?.role === 'superadmin';
   const canManage = currentUser && ['superadmin', 'admin', 'tech_teacher'].includes(currentUser.role);
@@ -123,9 +123,11 @@ export default function UsersPage() {
   };
 
   const schoolUsers = users.filter(u => u.schoolId === selectedSchoolId && u.id !== currentUser?.id);
+  const schoolCaptainIds = new Set(teams.filter(t => t.schoolId === selectedSchoolId).map(t => t.captainId));
   const filtered = schoolUsers.filter(u => {
     if (roleFilter === 'banned') return u.isBlacklisted;
-    if (u.isBlacklisted) return false; // hide banned users from other filters
+    if (roleFilter === 'captain') return schoolCaptainIds.has(u.id) && !u.isBlacklisted;
+    if (u.isBlacklisted) return false;
     if (roleFilter !== 'all' && u.role !== roleFilter) return false;
     const q = search.toLowerCase();
     return !q || `${u.firstName} ${u.lastName} ${u.username} ${u.email}`.toLowerCase().includes(q);
@@ -176,15 +178,33 @@ export default function UsersPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-        {(Object.keys(ROLE_LABELS) as UserRole[]).filter(r => r !== 'superadmin' && r !== 'demo').map(role => {
+        {(Object.keys(ROLE_LABELS) as UserRole[]).filter(r => r !== 'superadmin' && r !== 'demo' && r !== 'graduate').map(role => {
           const count = schoolUsers.filter(u => u.role === role).length;
           return (
-            <button key={role} onClick={() => setRoleFilter(role)} className="card p-3 text-center hover:border-slate-700/80 transition-colors">
+            <button key={role} onClick={() => setRoleFilter(roleFilter === role ? 'all' : role)}
+              className={`card p-3 text-center transition-colors ${roleFilter === role ? 'border-cyan-500/40 bg-cyan-500/5' : 'hover:border-slate-700/80'}`}>
               <p className="text-xl font-bold text-white">{count}</p>
               <p className="text-xs text-slate-500 mt-0.5">{ROLE_LABELS[role]}</p>
             </button>
           );
         })}
+        {/* Team captains — derived, not a role */}
+        <button onClick={() => setRoleFilter(roleFilter === 'captain' ? 'all' : 'captain')}
+          className={`card p-3 text-center transition-colors ${roleFilter === 'captain' ? 'border-cyan-500/40 bg-cyan-500/5' : 'hover:border-slate-700/80'}`}>
+          <p className="text-xl font-bold text-white">{schoolCaptainIds.size}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Takım Kaptanı</p>
+        </button>
+        {/* Graduate */}
+        {(() => {
+          const count = schoolUsers.filter(u => u.role === 'graduate').length;
+          return (
+            <button onClick={() => setRoleFilter(roleFilter === 'graduate' ? 'all' : 'graduate')}
+              className={`card p-3 text-center transition-colors ${roleFilter === 'graduate' ? 'border-cyan-500/40 bg-cyan-500/5' : 'hover:border-slate-700/80'}`}>
+              <p className="text-xl font-bold text-white">{count}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Mezun</p>
+            </button>
+          );
+        })()}
       </div>
 
       {/* Table */}
@@ -307,7 +327,7 @@ export default function UsersPage() {
 
       {/* WatchList reason input */}
       {showWatchInput && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-white mb-1">WatchList'e Ekle</h3>
             <p className="text-slate-400 text-sm mb-4">{users.find(u => u.id === showWatchInput)?.firstName} {users.find(u => u.id === showWatchInput)?.lastName}</p>
@@ -325,7 +345,7 @@ export default function UsersPage() {
 
       {/* Delete confirm */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-red-400 mb-2">Kullanıcıyı Sil</h3>
             <p className="text-slate-400 text-sm mb-5">
@@ -341,7 +361,7 @@ export default function UsersPage() {
 
       {/* User Detail Panel */}
       {selectedDetail && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-lg p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-white">Kullanıcı Detayı</h3>
@@ -390,7 +410,7 @@ export default function UsersPage() {
 
       {/* Ban Modal */}
       {banModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-red-400 mb-1">Kullanıcıyı Banla</h3>
             <p className="text-slate-400 text-sm mb-4">
@@ -430,7 +450,7 @@ export default function UsersPage() {
       {resetPwdUserId && (() => {
         const targetUser = users.find(u => u.id === resetPwdUserId);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
             <div className="card w-full max-w-sm p-6 animate-slide-up">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
@@ -514,7 +534,7 @@ export default function UsersPage() {
 
       {/* Registration Code Modal */}
       {showAddUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-md p-6 animate-slide-up">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-white">Kullanıcı Ekle</h3>
@@ -540,14 +560,6 @@ export default function UsersPage() {
                     {ADDABLE_ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                   </select>
                 </div>
-                {addForm.role === 'admin' && isSuper && (
-                  <div>
-                    <label className="label">Okul</label>
-                    <select value={addForm.schoolId} onChange={e => setAddForm(f => ({ ...f, schoolId: e.target.value }))} className="input">
-                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                  </div>
-                )}
                 {addForm.role === 'graduate' && (
                   <div>
                     <label className="label">Mezuniyet Yılı</label>

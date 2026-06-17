@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Users, UserPlus, UserMinus, Megaphone, Lock, Check, X,
   MessageSquare, Instagram, Twitter, Newspaper, Award, Plus, Edit3,
-  Image, Trophy, Handshake, Save, Search, Trash2, Camera,
+  Image, Trophy, Handshake, Save, Search, Trash2, Camera, GraduationCap, FileText,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { format } from 'date-fns';
@@ -22,7 +22,10 @@ export default function TeamDetailPage() {
   } = useStore();
 
   const [applyNote, setApplyNote] = useState('');
+  const [applyCvDataUrl, setApplyCvDataUrl] = useState('');
+  const [applyCvName, setApplyCvName] = useState('');
   const [showApply, setShowApply] = useState(false);
+  const cvInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'news' | 'achievements'>('news');
 
   // News form
@@ -61,6 +64,7 @@ export default function TeamDetailPage() {
   if (!team) return <div className="card p-8 text-center text-slate-400">Takım bulunamadı.</div>;
 
   const captain = users.find(u => u.id === team.captainId);
+  const advisor = team.advisorId ? users.find(u => u.id === team.advisorId) : null;
   const memberUsers = team.members.map(mid => users.find(u => u.id === mid)).filter(Boolean);
   const isAdmin = currentUser && ['superadmin', 'admin', 'tech_teacher'].includes(currentUser.role);
   const isCaptain = currentUser?.id === team.captainId;
@@ -92,9 +96,12 @@ export default function TeamDetailPage() {
       status: 'pending',
       appliedAt: new Date().toISOString(),
       roundTitle: team.recruitingTitle || undefined,
+      cvDataUrl: applyCvDataUrl || undefined,
     });
     setShowApply(false);
     setApplyNote('');
+    setApplyCvDataUrl('');
+    setApplyCvName('');
   };
 
   const handleOpenRecruit = () => {
@@ -255,7 +262,14 @@ export default function TeamDetailPage() {
                 </span>
               )}
             </div>
-            <p className="text-slate-400 leading-relaxed mb-4">{team.description}</p>
+            <p className="text-slate-400 leading-relaxed mb-3">{team.description}</p>
+
+            {advisor && (
+              <div className="flex items-center gap-2 mb-4">
+                <GraduationCap size={14} className="text-blue-400 flex-shrink-0" />
+                <span className="text-sm text-blue-300">Danışman: <span className="font-medium">{advisor.firstName} {advisor.lastName}</span></span>
+              </div>
+            )}
 
             {team.socialMedia && Object.values(team.socialMedia).some(Boolean) && (
               <div className="flex gap-3 mb-4">
@@ -492,6 +506,15 @@ export default function TeamDetailPage() {
                                   <MessageSquare size={11} className="text-slate-600 mt-0.5 flex-shrink-0" /> {app.note}
                                 </p>
                               )}
+                              {app.cvDataUrl && (
+                                <a
+                                  href={app.cvDataUrl}
+                                  download={`cv-${applicant.firstName}-${applicant.lastName}.pdf`}
+                                  className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 mb-2 transition-colors"
+                                >
+                                  <FileText size={11} /> CV İndir
+                                </a>
+                              )}
                               {app.status === 'pending' && (
                                 <div className="flex gap-2">
                                   <button onClick={() => handleTeamApplication(team.id, app.userId, 'approved')} className="btn-primary text-xs py-1 px-3 flex-1 justify-center"><Check size={12} /> Kabul</button>
@@ -683,17 +706,44 @@ export default function TeamDetailPage() {
 
       {/* Apply Modal */}
       {showApply && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-white mb-1">{team.name}</h3>
             {team.recruitingTitle && <p className="text-sm text-cyan-400 mb-2">Alım: {team.recruitingTitle}</p>}
-            <p className="text-slate-400 text-sm mb-5">Motivasyon notunuzu ekleyebilirsiniz.</p>
+            <p className="text-slate-400 text-sm mb-4">Motivasyon notunuzu ekleyebilirsiniz.</p>
             <div className="mb-4">
               <label className="label">Motivasyon Notu (opsiyonel)</label>
-              <textarea value={applyNote} onChange={e => setApplyNote(e.target.value)} className="input h-24 resize-none" placeholder="Bu takıma neden katılmak istiyorsunuz?" />
+              <textarea value={applyNote} onChange={e => setApplyNote(e.target.value)} className="input h-20 resize-none" placeholder="Bu takıma neden katılmak istiyorsunuz?" />
+            </div>
+            <div className="mb-5">
+              <label className="label flex items-center gap-1.5"><FileText size={13} /> CV (PDF, opsiyonel)</label>
+              <input ref={cvInputRef} type="file" accept=".pdf" className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setApplyCvName(file.name);
+                  const reader = new FileReader();
+                  reader.onloadend = () => setApplyCvDataUrl(reader.result as string);
+                  reader.readAsDataURL(file);
+                }}
+              />
+              {applyCvDataUrl ? (
+                <div className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2">
+                  <FileText size={14} className="text-cyan-400 flex-shrink-0" />
+                  <span className="text-xs text-cyan-300 flex-1 truncate">{applyCvName}</span>
+                  <button type="button" onClick={() => { setApplyCvDataUrl(''); setApplyCvName(''); }} className="text-slate-500 hover:text-red-400">
+                    <X size={13} />
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => cvInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-slate-700/60 rounded-lg py-3 text-sm text-slate-500 hover:border-slate-600 hover:text-slate-400 transition-colors flex items-center justify-center gap-2">
+                  <FileText size={14} /> PDF Yükle
+                </button>
+              )}
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowApply(false)} className="btn-secondary flex-1 justify-center">İptal</button>
+              <button onClick={() => { setShowApply(false); setApplyNote(''); setApplyCvDataUrl(''); setApplyCvName(''); }} className="btn-secondary flex-1 justify-center">İptal</button>
               <button onClick={handleApply} className="btn-primary flex-1 justify-center">Başvur</button>
             </div>
           </div>
@@ -702,7 +752,7 @@ export default function TeamDetailPage() {
 
       {/* Open Recruitment Modal — asks for title */}
       {showOpenRecruit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-white mb-1">Alım Başlat</h3>
             <p className="text-slate-400 text-sm mb-5">
@@ -731,7 +781,7 @@ export default function TeamDetailPage() {
 
       {/* Add News Modal */}
       {showAddNews && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-lg p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-white mb-5">Haber Ekle</h3>
             <form onSubmit={handleAddNews} className="space-y-4">
@@ -776,7 +826,7 @@ export default function TeamDetailPage() {
 
       {/* Add Achievement / Sponsor Modal */}
       {showAddAchieve && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-md p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-white mb-5">Başarı / Sponsor Ekle</h3>
             <form onSubmit={handleAddAchieve} className="space-y-4">
@@ -825,7 +875,7 @@ export default function TeamDetailPage() {
 
       {/* Edit Team Modal — includes social media */}
       {showEditTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="card w-full max-w-md p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-white mb-5">Takım Bilgilerini Düzenle</h3>
             <form onSubmit={handleSaveTeam} className="space-y-4">

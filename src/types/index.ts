@@ -37,6 +37,7 @@ export interface User {
   phone?: string;
   instagram?: string;
   role: UserRole;
+  photoUrl?: string; // base64 profile photo
   class?: string;
   section?: string;
   isBlacklisted: boolean;
@@ -71,7 +72,8 @@ export interface TeamApplication {
   note: string;
   status: 'pending' | 'approved' | 'rejected';
   appliedAt: string;
-  roundTitle?: string; // recruitment round title this application belongs to
+  roundTitle?: string;
+  cvDataUrl?: string; // base64 PDF uploaded by applicant
 }
 
 export interface TeamNews {
@@ -100,6 +102,7 @@ export interface Team {
   name: string;
   type: TeamType;
   captainId: string;
+  advisorId?: string; // branch_teacher assigned as team advisor
   members: string[];
   formerMembers?: string[];  // user IDs of members who left/were removed
   description: string;
