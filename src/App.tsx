@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store/useStore';
+import { supabase } from './lib/supabase';
 import LoginPage from './pages/LoginPage';
 import ActivatePage from './pages/ActivatePage';
 import Layout from './components/Layout';
@@ -16,10 +17,16 @@ function useHydrated() {
   const [hydrated, setHydrated] = useState(() => useStore.persist.hasHydrated());
   useEffect(() => {
     if (hydrated) return;
+    // No Supabase → localStorage is sync, treat as immediately hydrated
+    if (!supabase) { setHydrated(true); return; }
+    if (useStore.persist.hasHydrated()) { setHydrated(true); return; }
     const unsub = useStore.persist.onFinishHydration(() => setHydrated(true));
+    // Re-check in case hydration finished between the line above and this one
     if (useStore.persist.hasHydrated()) { unsub(); setHydrated(true); return; }
-    return unsub;
-  }, [hydrated]);
+    // Fallback: never get stuck — force-unblock after 8 s
+    const timer = setTimeout(() => { unsub(); setHydrated(true); }, 8000);
+    return () => { unsub(); clearTimeout(timer); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return hydrated;
 }
 
