@@ -183,7 +183,12 @@ interface AppState {
 }
 
 const defaultState = {
-  theme: (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') as 'dark' | 'light',
+  theme: (() => {
+    if (typeof window === 'undefined') return 'dark';
+    const saved = localStorage.getItem('opays-v2-theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  })() as 'dark' | 'light',
   currentUser: null,
   selectedSchoolId: 'sch1',
   schools: INITIAL_SCHOOLS,
@@ -214,7 +219,11 @@ export const useStore = create<AppState>()(
     (set, get) => ({
       ...defaultState,
 
-      toggleTheme: () => set(s => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      toggleTheme: () => set(s => {
+        const next = s.theme === 'dark' ? 'light' : 'dark';
+        if (typeof window !== 'undefined') localStorage.setItem('opays-v2-theme', next);
+        return { theme: next };
+      }),
 
       addSchool: (school) => set(s => ({
         schools: [...s.schools, { ...school, id: nanoid() }],

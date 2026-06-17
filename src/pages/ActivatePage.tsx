@@ -91,30 +91,19 @@ export default function ActivatePage() {
 
   const isGraduate = codeData?.role === 'graduate';
   const isStudentRole = !codeData?.role || codeData.role === 'student';
-  const requiresPhone = isStudentRole || codeData?.role === 'branch_teacher' || codeData?.role === 'tech_teacher';
+  const requiresPhone = true;
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    // Wait for hydration if not done yet
-    if (!useStore.persist.hasHydrated() && supabase) {
+    // If still hydrating, wait briefly — but don't block indefinitely
+    if (supabase && !useStore.persist.hasHydrated()) {
       await new Promise<void>(resolve => {
-        if (useStore.persist.hasHydrated()) { resolve(); return; }
-        let timer: ReturnType<typeof setTimeout>;
-        const unsub = useStore.persist.onFinishHydration(() => { unsub(); clearTimeout(timer); resolve(); });
-        // Hydration may have completed between the check above and registering
-        // the listener — re-check so we don't block on the timeout for nothing.
+        const unsub = useStore.persist.onFinishHydration(() => { unsub(); resolve(); });
         if (useStore.persist.hasHydrated()) { unsub(); resolve(); return; }
-        timer = setTimeout(() => { unsub(); resolve(); }, 8000);
+        setTimeout(() => { unsub(); resolve(); }, 5000);
       });
-    }
-    const storeState = useStore.getState();
-    // If Supabase is configured but no codes loaded → server/RLS issue
-    if (supabase && storeState.codes.length === 0) {
-      setLoading(false);
-      setError('Sunucu verileri yüklenemedi. "Yenile" butonuna basıp tekrar deneyin.');
-      return;
     }
     const result = activateCode(code.trim());
     setLoading(false);
@@ -150,8 +139,10 @@ export default function ActivatePage() {
       isGraduate ? { graduationYear, university: university.trim(), department: department.trim() } : undefined,
     );
     setLoading(false);
-    if (result.success) navigate('/dashboard');
-    else setError(result.error || 'Hesap oluşturulamadı.');
+    if (result.success) { navigate('/dashboard'); return; }
+    // Safety: if account was created but navigation failed, detect and redirect
+    if (useStore.getState().currentUser) { navigate('/dashboard'); return; }
+    setError(result.error || 'Hesap oluşturulamadı.');
   };
 
   const progress = step === 1 ? 10 : 90;

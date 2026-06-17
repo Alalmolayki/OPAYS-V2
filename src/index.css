@@ -42,6 +42,10 @@
 @layer base {
   * { box-sizing: border-box; }
 
+  html {
+    background-color: var(--c-base);
+  }
+
   body {
     @apply font-sans antialiased;
     background-color: var(--c-base);

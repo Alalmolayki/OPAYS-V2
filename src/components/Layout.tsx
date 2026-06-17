@@ -69,18 +69,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     document.documentElement.classList.toggle('light', isLight);
   }, [isLight]);
 
-  // Follow system theme changes while app is open
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: light)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      const systemIsLight = e.matches;
-      const currentTheme = useStore.getState().theme;
-      if ((currentTheme === 'light') !== systemIsLight) toggleTheme();
-    };
-    mq.addEventListener('change', handleChange);
-    return () => mq.removeEventListener('change', handleChange);
-  }, [toggleTheme]);
-
   const handleLogout = () => { logout(); navigate('/'); };
 
   const SidebarContent = () => (

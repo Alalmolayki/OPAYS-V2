@@ -44,6 +44,10 @@ export default function UsersPage() {
 
   const isSuper = currentUser?.role === 'superadmin';
   const canManage = currentUser && ['superadmin', 'admin', 'tech_teacher', 'branch_teacher'].includes(currentUser.role);
+  // Branch/tech teachers can only act on students, not on other staff
+  const isTeacherActor = currentUser && ['branch_teacher', 'tech_teacher'].includes(currentUser.role);
+  const canActOn = (targetRole: UserRole) => !isTeacherActor || targetRole === 'student';
+  const isStaffRole = (role: UserRole) => ['superadmin', 'admin', 'branch_teacher', 'tech_teacher'].includes(role);
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -292,7 +296,9 @@ export default function UsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-sm text-amber-400 font-medium">{user.points || 0}</span>
+                      {isStaffRole(user.role)
+                        ? <span className="text-sm text-slate-600">—</span>
+                        : <span className="text-sm text-amber-400 font-medium">{user.points || 0}</span>}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
@@ -304,22 +310,22 @@ export default function UsersPage() {
                             <Edit3 size={13} />
                           </button>
                         )}
-                        {canManage && !isBanned && (
+                        {canManage && !isBanned && canActOn(user.role) && (
                           <button onClick={() => { setResetPwdUserId(user.id); setResetPwdValue(genPassword()); setResetPwdDone(false); setResetPwdCopied(false); }} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-yellow-400 hover:border-yellow-500/30 flex items-center justify-center transition-colors" title="Şifre Sıfırla">
                             <Key size={13} />
                           </button>
                         )}
-                        {canManage && !onWatch && (
+                        {canManage && !onWatch && canActOn(user.role) && (
                           <button onClick={() => setShowWatchInput(user.id)} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-400 hover:border-amber-500/30 flex items-center justify-center transition-colors" title="WatchList'e Ekle">
                             <Eye size={13} />
                           </button>
                         )}
-                        {canManage && (
+                        {canManage && canActOn(user.role) && (
                           <button onClick={() => resetUserProfile(user.id)} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-blue-400 hover:border-blue-500/30 flex items-center justify-center transition-colors" title="Profil Sıfırla">
                             <RefreshCw size={13} />
                           </button>
                         )}
-                        {isSuper && !isBanned && (
+                        {canManage && !isBanned && user.role === 'student' && (
                           <button onClick={() => setBanModal(user.id)} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-500/30 flex items-center justify-center transition-colors" title="Banla">
                             <ShieldX size={13} />
                           </button>
@@ -329,7 +335,7 @@ export default function UsersPage() {
                             <ShieldOff size={13} />
                           </button>
                         )}
-                        {canManage && !isBanned && (
+                        {canManage && !isBanned && canActOn(user.role) && (
                           <button onClick={() => setConfirmDelete(user.id)} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-500/30 flex items-center justify-center transition-colors" title="Sil">
                             <Trash2 size={13} />
                           </button>
