@@ -79,11 +79,19 @@ export default function TeamDetailPage() {
 
   const captain = users.find(u => u.id === team.captainId);
   const advisor = team.advisorId ? users.find(u => u.id === team.advisorId) : null;
-  const memberUsers = team.members.map(mid => users.find(u => u.id === mid)).filter(Boolean);
+  const classRank = (cls?: string) => { const n = parseInt(cls || '', 10); return isNaN(n) ? 0 : n; };
+  const memberUsers = team.members
+    .map(mid => users.find(u => u.id === mid))
+    .filter((u): u is NonNullable<typeof u> => Boolean(u))
+    .sort((a, b) => {
+      if (a.id === team.captainId) return -1;
+      if (b.id === team.captainId) return 1;
+      return classRank(b.class) - classRank(a.class);
+    });
   const isAdmin = currentUser && ['superadmin', 'admin', 'tech_teacher'].includes(currentUser.role);
   const isCaptain = currentUser?.id === team.captainId;
   const isMember = currentUser && team.members.includes(currentUser.id);
-  const hasApplied = currentUser && team.applications.some(a => a.userId === currentUser.id);
+  const hasApplied = currentUser && team.applications.some(a => a.userId === currentUser.id && a.status !== 'rejected');
   const canManage = isAdmin || isCaptain;
 
   // Deduplicate achievements by id
@@ -309,7 +317,7 @@ export default function TeamDetailPage() {
             {advisor && (
               <div className="flex items-center gap-2 mb-4">
                 <GraduationCap size={14} className="text-blue-400 flex-shrink-0" />
-                <span className="text-sm text-blue-300">Danışman: <span className="font-medium">{advisor.firstName} {advisor.lastName}</span></span>
+                <span className="text-sm text-blue-500">Danışman: <span className="font-medium">{advisor.firstName} {advisor.lastName}</span></span>
               </div>
             )}
 

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store/useStore';
 import LoginPage from './pages/LoginPage';
@@ -11,16 +12,40 @@ import ImportPage from './pages/ImportPage';
 import NotificationsPage from './pages/NotificationsPage';
 import UsersPage from './pages/UsersPage';
 
+function useHydrated() {
+  const [hydrated, setHydrated] = useState(() => useStore.persist.hasHydrated());
+  useEffect(() => {
+    if (hydrated) return;
+    const unsub = useStore.persist.onFinishHydration(() => setHydrated(true));
+    if (useStore.persist.hasHydrated()) { unsub(); setHydrated(true); return; }
+    return unsub;
+  }, [hydrated]);
+  return hydrated;
+}
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const currentUser = useStore(s => s.currentUser);
+  const hydrated = useHydrated();
+  if (!hydrated) return null;
   if (!currentUser) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const currentUser = useStore(s => s.currentUser);
+  const hydrated = useHydrated();
+  if (!hydrated) return null;
   if (!currentUser) return <Navigate to="/" replace />;
   if (!['superadmin', 'admin', 'tech_teacher'].includes(currentUser.role)) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+function RequireStaff({ children }: { children: React.ReactNode }) {
+  const currentUser = useStore(s => s.currentUser);
+  const hydrated = useHydrated();
+  if (!hydrated) return null;
+  if (!currentUser) return <Navigate to="/" replace />;
+  if (!['superadmin', 'admin', 'tech_teacher', 'branch_teacher'].includes(currentUser.role)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -51,7 +76,7 @@ export default function App() {
           <RequireAuth><Layout><NotificationsPage /></Layout></RequireAuth>
         } />
         <Route path="/users" element={
-          <RequireAdmin><Layout><UsersPage /></Layout></RequireAdmin>
+          <RequireStaff><Layout><UsersPage /></Layout></RequireStaff>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

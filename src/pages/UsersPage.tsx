@@ -43,7 +43,7 @@ export default function UsersPage() {
   const { currentUser, users, teams, selectedSchoolId, updateUser, deleteUser, resetUserProfile, watchList, addToWatchList, createRegistrationCode, graduates, changePassword } = useStore();
 
   const isSuper = currentUser?.role === 'superadmin';
-  const canManage = currentUser && ['superadmin', 'admin', 'tech_teacher'].includes(currentUser.role);
+  const canManage = currentUser && ['superadmin', 'admin', 'tech_teacher', 'branch_teacher'].includes(currentUser.role);
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -86,8 +86,8 @@ export default function UsersPage() {
   ])).sort((a, b) => Number(b) - Number(a));
 
   const ADDABLE_ROLES: UserRole[] = isSuper
-    ? ['student', 'branch_teacher', 'tech_teacher', 'admin', 'demo', 'graduate']
-    : ['student', 'branch_teacher'];
+    ? ['student', 'branch_teacher', 'tech_teacher', 'admin', 'demo', 'graduate', 'superadmin']
+    : ['student', 'branch_teacher', 'graduate'];
 
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +127,12 @@ export default function UsersPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const schoolUsers = users.filter(u => u.schoolId === selectedSchoolId && u.id !== currentUser?.id);
+  const schoolUsers = users.filter(u => {
+    if (u.schoolId !== selectedSchoolId) return false;
+    if (u.id === currentUser?.id) return false;
+    if (u.role === 'superadmin' && !isSuper) return false;
+    return true;
+  });
   const schoolTeams = teams.filter(t => t.schoolId === selectedSchoolId);
   const schoolCaptainIds = new Set(schoolTeams.map(t => t.captainId));
   const captainTeamMap = new Map(schoolTeams.map(t => [t.captainId, t.name]));
@@ -294,11 +299,6 @@ export default function UsersPage() {
                         <button onClick={() => setDetailUser(user.id)} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30 flex items-center justify-center transition-colors" title="Detay">
                           <ChevronDown size={13} />
                         </button>
-                        {canManage && (
-                          <button onClick={() => { setEditUsernameId(user.id); setEditUsernameValue(user.username); setEditUsernameError(''); }} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-purple-400 hover:border-purple-500/30 flex items-center justify-center transition-colors" title="Kullanıcı Adı Değiştir">
-                            <AtSign size={13} />
-                          </button>
-                        )}
                         {isSuper && editingId !== user.id && (
                           <button onClick={() => { setEditingId(user.id); setEditRole(user.role); }} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30 flex items-center justify-center transition-colors" title="Rolü Düzenle">
                             <Edit3 size={13} />

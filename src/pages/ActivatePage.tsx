@@ -91,6 +91,7 @@ export default function ActivatePage() {
 
   const isGraduate = codeData?.role === 'graduate';
   const isStudentRole = !codeData?.role || codeData.role === 'student';
+  const requiresPhone = isStudentRole || codeData?.role === 'branch_teacher' || codeData?.role === 'tech_teacher';
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,9 +127,8 @@ export default function ActivatePage() {
     setError('');
     if (password !== confirm) { setError('Şifreler eşleşmiyor.'); return; }
     if (password.length < 8) { setError('Şifre en az 8 karakter olmalı.'); return; }
-    // Phone required only for students/captains
-    if (isStudentRole) {
-      if (!instagram.trim()) { setError('Instagram kullanıcı adı zorunludur.'); return; }
+    if (isStudentRole && !instagram.trim()) { setError('Instagram kullanıcı adı zorunludur.'); return; }
+    if (requiresPhone) {
       const rawPhone = phone.replace(/\D/g, '');
       if (!/^[0-9]{10}$/.test(rawPhone)) { setError('Geçerli bir telefon numarası girin (10 rakam).'); return; }
     }
@@ -290,7 +290,7 @@ export default function ActivatePage() {
               {/* Phone — required for students, optional for others */}
               <div>
                 <label className="label">
-                  Telefon Numarası {isStudentRole ? <span className="text-red-400">*</span> : <span className="text-slate-600 font-normal">(opsiyonel)</span>}
+                  Telefon Numarası {requiresPhone ? <span className="text-red-400">*</span> : <span className="text-slate-600 font-normal">(opsiyonel)</span>}
                 </label>
                 <div className="flex gap-2">
                   <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg px-3 flex items-center text-slate-400 text-sm font-mono flex-shrink-0">
@@ -302,7 +302,7 @@ export default function ActivatePage() {
                     onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     placeholder="5XX XXX XX XX"
                     className="input font-mono flex-1"
-                    required={isStudentRole}
+                    required={requiresPhone}
                   />
                 </div>
               </div>

@@ -183,7 +183,7 @@ interface AppState {
 }
 
 const defaultState = {
-  theme: 'dark' as 'dark' | 'light',
+  theme: (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') as 'dark' | 'light',
   currentUser: null,
   selectedSchoolId: 'sch1',
   schools: INITIAL_SCHOOLS,
@@ -402,7 +402,7 @@ export const useStore = create<AppState>()(
         const actor = s.currentUser ? s.users.find(u => u.id === s.currentUser!.id) : undefined;
         if (!actor) return s;
         const isSelf = actor.id === id;
-        const isStaff = ['superadmin', 'admin', 'tech_teacher'].includes(actor.role);
+        const isStaff = ['superadmin', 'admin', 'tech_teacher', 'branch_teacher'].includes(actor.role);
         const isSuper = actor.role === 'superadmin';
 
         let allowedKeys: (keyof User)[];
@@ -572,18 +572,22 @@ export const useStore = create<AppState>()(
         set(s => ({
           teams: s.teams.map(t => {
             if (t.id !== teamId) return t;
-            const apps = t.applications.map(a => a.userId === userId ? { ...a, status } : a);
+            // On rejection: remove the application so the user can re-apply later
+            const apps = status === 'rejected'
+              ? t.applications.filter(a => a.userId !== userId)
+              : t.applications.map(a => a.userId === userId ? { ...a, status } : a);
             const members = status === 'approved' && !t.members.includes(userId) ? [...t.members, userId] : t.members;
             return { ...t, applications: apps, members };
           }),
         }));
-        if (status === 'approved') {
-          const team = get().teams.find(t => t.id === teamId);
-          if (team) {
-            get().addTimelineEntry({ userId, type: 'team', referenceId: teamId, title: `${team.name}'a Katıldı`, description: 'Başvurusu kabul edilerek takıma eklendi.', isVerified: true, date: new Date().toISOString() });
-            get().updatePoints(userId, 100);
-            get().addUserNotification(userId, `"${team.name}" takımına başvurunuz kabul edildi! Takıma hoş geldiniz. 🎉`, 'success');
-          }
+        const team = get().teams.find(t => t.id === teamId);
+        if (status === 'approved' && team) {
+          get().addTimelineEntry({ userId, type: 'team', referenceId: teamId, title: `${team.name}'a Katıldı`, description: 'Başvurusu kabul edilerek takıma eklendi.', isVerified: true, date: new Date().toISOString() });
+          get().updatePoints(userId, 100);
+          get().addUserNotification(userId, `"${team.name}" takımına başvurunuz kabul edildi! Takıma hoş geldiniz. 🎉`, 'success');
+        }
+        if (status === 'rejected' && team) {
+          get().addUserNotification(userId, `"${team.name}" takım başvurunuz olumsuz sonuçlanmıştır.`, 'warning');
         }
       },
 
@@ -947,8 +951,9 @@ export const useStore = create<AppState>()(
       // currentUser is device-local so sessions never leak across devices.
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { currentUser, ...rest } = state as unknown as Record<string, unknown>;
-        return rest as Omit<AppState, 'currentUser'>;
+        const { currentUser, theme, ...rest } = state as unknown as Record<string, unknown>;
+        void theme; // excluded: device-local, stored separately in localStorage
+        return rest as Omit<AppState, 'currentUser' | 'theme'>;
       },
       // After Supabase hydration, restore the session from this device's localStorage.
       // Validate against the freshly-loaded user list so banned/deleted accounts

@@ -36,7 +36,7 @@ export default function LoginPage() {
     const result = login(identifier.trim(), password);
     setLoading(false);
     if (result.success) navigate('/dashboard');
-    else setError(result.error || 'Giriş başarısız.');
+    else setError('Lütfen kullanıcı adınızı ve şifrenizi kontrol edin.');
   };
 
   return (
