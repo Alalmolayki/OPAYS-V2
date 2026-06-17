@@ -197,7 +197,7 @@ export default function TeamDetailPage() {
 
   // Captain/advisor search for edit modal
   const schoolStudents = users.filter(u => u.schoolId === (team.schoolId || selectedSchoolId) && u.role === 'student');
-  const schoolTeachers = users.filter(u => u.schoolId === (team.schoolId || selectedSchoolId) && u.role === 'branch_teacher');
+  const schoolTeachers = users.filter(u => u.schoolId === (team.schoolId || selectedSchoolId) && ['branch_teacher', 'tech_teacher', 'admin'].includes(u.role));
   const editCaptainResults = editCaptainSearch.trim().length >= 1
     ? schoolStudents.filter(u => {
         const q = editCaptainSearch.toLowerCase();
@@ -213,7 +213,8 @@ export default function TeamDetailPage() {
 
   const handleSaveTeam = (e: React.FormEvent) => {
     e.preventDefault();
-    updateTeam(team.id, {
+    const newCaptainId = editSelectedCaptain ? editSelectedCaptain.id : team.captainId;
+    const updates: Partial<typeof team> = {
       name: editForm.name,
       description: editForm.description,
       socialMedia: {
@@ -221,9 +222,14 @@ export default function TeamDetailPage() {
         instagram: editForm.instagram.replace('@', '') || undefined,
         twitter: editForm.twitter.replace('@', '') || undefined,
       },
-      ...(editSelectedCaptain ? { captainId: editSelectedCaptain.id } : {}),
-      advisorId: editSelectedAdvisor ? editSelectedAdvisor.id : (editSelectedAdvisor === null && team.advisorId ? undefined : team.advisorId),
-    });
+      captainId: newCaptainId,
+      advisorId: editSelectedAdvisor ? editSelectedAdvisor.id : undefined,
+    };
+    // Ensure new captain is a member
+    if (!team.members.includes(newCaptainId)) {
+      (updates as any).members = [...team.members, newCaptainId];
+    }
+    updateTeam(team.id, updates);
     setShowEditTeam(false);
   };
 
@@ -427,9 +433,13 @@ export default function TeamDetailPage() {
                 const isCapt = m.id === team.captainId;
                 return (
                   <div key={m.id} className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${team.logoColor} flex items-center justify-center text-xs font-bold text-white`}>
-                      {m.firstName[0]}{m.lastName[0]}
-                    </div>
+                    {m.photoUrl ? (
+                      <img src={m.photoUrl} alt="Profil" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                    ) : (
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${team.logoColor} flex items-center justify-center text-xs font-bold text-white`}>
+                        {m.firstName[0]}{m.lastName[0]}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-200 truncate">{m.firstName} {m.lastName}</p>
                       <p className="text-xs text-slate-500">{isCapt ? 'Kaptan' : m.class ? `${m.class}/${m.section}` : 'Üye'}</p>
@@ -522,9 +532,13 @@ export default function TeamDetailPage() {
                           return (
                             <div key={app.userId} className="border border-slate-800/60 rounded-xl p-3">
                               <div className="flex items-center gap-2 mb-2">
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white ${avatarGradient(applicant.id)}`}>
-                                  {applicant.firstName[0]}{applicant.lastName[0]}
-                                </div>
+                                {applicant.photoUrl ? (
+                                  <img src={applicant.photoUrl} alt="Profil" className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+                                ) : (
+                                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white ${avatarGradient(applicant.id)}`}>
+                                    {applicant.firstName[0]}{applicant.lastName[0]}
+                                  </div>
+                                )}
                                 <div>
                                   <p className="text-sm font-medium text-white">{applicant.firstName} {applicant.lastName}</p>
                                   <p className="text-xs text-slate-500">
@@ -545,18 +559,30 @@ export default function TeamDetailPage() {
                               {app.cvDataUrl && (
                                 <div className="flex items-center gap-2 mb-2">
                                   <button
-                                    onClick={() => window.open(app.cvDataUrl, '_blank')}
+                                    onClick={() => {
+                                      fetch(app.cvDataUrl!)
+                                        .then(r => r.blob())
+                                        .then(blob => {
+                                          const url = URL.createObjectURL(blob);
+                                          window.open(url, '_blank');
+                                          setTimeout(() => URL.revokeObjectURL(url), 30000);
+                                        });
+                                    }}
                                     className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
                                   >
                                     <ExternalLink size={11} /> CV Görüntüle
                                   </button>
-                                  <a
-                                    href={app.cvDataUrl}
-                                    download={`CV-${applicant.firstName}-${applicant.lastName}-${team.name}.pdf`}
+                                  <button
+                                    onClick={() => {
+                                      const a = document.createElement('a');
+                                      a.href = app.cvDataUrl!;
+                                      a.download = `CV-${applicant.firstName}-${applicant.lastName}-${team.name}.pdf`;
+                                      a.click();
+                                    }}
                                     className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-300 transition-colors"
                                   >
                                     <Download size={11} /> İndir
-                                  </a>
+                                  </button>
                                 </div>
                               )}
                               {app.status === 'pending' && (
@@ -750,7 +776,7 @@ export default function TeamDetailPage() {
 
       {/* Apply Modal */}
       {showApply && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-white mb-1">{team.name}</h3>
             {team.recruitingTitle && <p className="text-sm text-cyan-400 mb-2">Alım: {team.recruitingTitle}</p>}
@@ -796,7 +822,7 @@ export default function TeamDetailPage() {
 
       {/* Open Recruitment Modal — asks for title */}
       {showOpenRecruit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-white mb-1">Alım Başlat</h3>
             <p className="text-slate-400 text-sm mb-5">
@@ -825,7 +851,7 @@ export default function TeamDetailPage() {
 
       {/* Add News Modal */}
       {showAddNews && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-lg p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-white mb-5">Haber Ekle</h3>
             <form onSubmit={handleAddNews} className="space-y-4">
@@ -870,7 +896,7 @@ export default function TeamDetailPage() {
 
       {/* Add Achievement / Sponsor Modal */}
       {showAddAchieve && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-md p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-white mb-5">Başarı / Sponsor Ekle</h3>
             <form onSubmit={handleAddAchieve} className="space-y-4">
@@ -919,10 +945,10 @@ export default function TeamDetailPage() {
 
       {/* Edit Team Modal — includes social media, captain, advisor */}
       {showEditTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-md p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-white mb-5">Takım Bilgilerini Düzenle</h3>
-            <form onSubmit={handleSaveTeam} className="space-y-4">
+            <form onSubmit={handleSaveTeam} className="space-y-4" onKeyDown={e => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') e.preventDefault(); }}>
               <div>
                 <label className="label">Takım Adı</label>
                 <input type="text" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="input" required />

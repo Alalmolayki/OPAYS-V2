@@ -280,7 +280,7 @@ export default function TeamsPage() {
 
       {/* Create Team Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-md p-6 animate-slide-up">
             <h2 className="text-lg font-bold text-white mb-5">Yeni Takım Oluştur</h2>
             <form onSubmit={handleCreate} className="space-y-4">

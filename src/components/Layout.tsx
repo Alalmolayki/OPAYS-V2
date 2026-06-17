@@ -146,9 +146,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="px-3 pb-4">
           <div className="card p-3">
             <div className="flex items-center gap-2.5">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${avatarGradient(currentUser.id)}`}>
-                {currentUser.firstName[0]}{currentUser.lastName[0]}
-              </div>
+              {currentUser.photoUrl ? (
+                <img src={currentUser.photoUrl} alt="Profil" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+              ) : (
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${avatarGradient(currentUser.id)}`}>
+                  {currentUser.firstName[0]}{currentUser.lastName[0]}
+                </div>
+              )}
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-200 truncate">{currentUser.firstName} {currentUser.lastName}</p>
                 <p className="text-xs text-slate-500">{selectedSchool?.name}</p>

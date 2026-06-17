@@ -236,9 +236,13 @@ export default function UsersPage() {
                   <tr key={user.id} className={`transition-colors ${isBanned ? 'bg-red-500/3 hover:bg-red-500/5' : onWatch ? 'bg-amber-500/3 hover:bg-amber-500/5' : 'hover:bg-slate-800/20'}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${onWatch ? 'bg-gradient-to-br from-amber-700/60 to-orange-800/40 border border-amber-500/20' : avatarGradient(user.id)}`}>
-                          {user.firstName[0]}{user.lastName[0]}
-                        </div>
+                        {user.photoUrl ? (
+                          <img src={user.photoUrl} alt="Profil" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                        ) : (
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${onWatch ? 'bg-gradient-to-br from-amber-700/60 to-orange-800/40 border border-amber-500/20' : avatarGradient(user.id)}`}>
+                            {user.firstName[0]}{user.lastName[0]}
+                          </div>
+                        )}
                         <div>
                           <div className="flex items-center gap-2">
                             <p className={`text-sm font-medium ${isBanned ? 'text-red-400 line-through opacity-60' : 'text-white'}`}>{user.firstName} {user.lastName}</p>
@@ -343,7 +347,7 @@ export default function UsersPage() {
 
       {/* WatchList reason input */}
       {showWatchInput && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-white mb-1">WatchList'e Ekle</h3>
             <p className="text-slate-400 text-sm mb-4">{users.find(u => u.id === showWatchInput)?.firstName} {users.find(u => u.id === showWatchInput)?.lastName}</p>
@@ -361,7 +365,7 @@ export default function UsersPage() {
 
       {/* Delete confirm */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-red-400 mb-2">Kullanıcıyı Sil</h3>
             <p className="text-slate-400 text-sm mb-5">
@@ -377,16 +381,20 @@ export default function UsersPage() {
 
       {/* User Detail Panel */}
       {selectedDetail && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-lg p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-white">Kullanıcı Detayı</h3>
               <button onClick={() => setDetailUser(null)} className="text-slate-500 hover:text-slate-300"><X size={18} /></button>
             </div>
             <div className="flex items-center gap-4 mb-5">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl ${isOnWatchList(selectedDetail.id) ? 'bg-gradient-to-br from-amber-700/60 to-orange-800/40 border border-amber-500/20' : avatarGradient(selectedDetail.id)}`}>
-                {selectedDetail.firstName[0]}{selectedDetail.lastName[0]}
-              </div>
+              {selectedDetail.photoUrl ? (
+                <img src={selectedDetail.photoUrl} alt="Profil" className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" />
+              ) : (
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl ${isOnWatchList(selectedDetail.id) ? 'bg-gradient-to-br from-amber-700/60 to-orange-800/40 border border-amber-500/20' : avatarGradient(selectedDetail.id)}`}>
+                  {selectedDetail.firstName[0]}{selectedDetail.lastName[0]}
+                </div>
+              )}
               <div>
                 <p className="text-xl font-bold text-white">{selectedDetail.firstName} {selectedDetail.lastName}</p>
                 <p className="text-slate-400">@{selectedDetail.username}</p>
@@ -426,7 +434,7 @@ export default function UsersPage() {
 
       {/* Ban Modal */}
       {banModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-sm p-6 animate-slide-up">
             <h3 className="text-lg font-bold text-red-400 mb-1">Kullanıcıyı Banla</h3>
             <p className="text-slate-400 text-sm mb-4">
@@ -466,7 +474,7 @@ export default function UsersPage() {
       {resetPwdUserId && (() => {
         const targetUser = users.find(u => u.id === resetPwdUserId);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="card w-full max-w-sm p-6 animate-slide-up">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
@@ -552,7 +560,7 @@ export default function UsersPage() {
       {editUsernameId && (() => {
         const targetUser = users.find(u => u.id === editUsernameId);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="card w-full max-w-sm p-6 animate-slide-up">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
