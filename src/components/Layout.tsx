@@ -34,23 +34,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     !n.read && (n.userId === currentUser?.id || (!n.userId && currentUser?.role === 'superadmin'))
   ).length;
 
-  // Apply .light class to <html> so CSS variables activate globally
-  useEffect(() => {
-    document.documentElement.classList.toggle('light', isLight);
-  }, [isLight]);
-
-  // Follow system theme changes while app is open
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: light)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      const systemIsLight = e.matches;
-      const currentTheme = useStore.getState().theme;
-      if ((currentTheme === 'light') !== systemIsLight) toggleTheme();
-    };
-    mq.addEventListener('change', handleChange);
-    return () => mq.removeEventListener('change', handleChange);
-  }, [toggleTheme]);
-
   useEffect(() => {
     if (unreadNotifications > 0 && !notifPopupShown.current && currentUser) {
       notifPopupShown.current = true;
@@ -80,6 +63,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const visibleNav = navItems.filter(item => currentUser && item.roles.includes(currentUser.role));
   const selectedSchool = schools.find(s => s.id === selectedSchoolId);
   const isLight = theme === 'light';
+
+  // Apply .light class to <html> so CSS variables activate globally
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', isLight);
+  }, [isLight]);
+
+  // Follow system theme changes while app is open
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: light)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      const systemIsLight = e.matches;
+      const currentTheme = useStore.getState().theme;
+      if ((currentTheme === 'light') !== systemIsLight) toggleTheme();
+    };
+    mq.addEventListener('change', handleChange);
+    return () => mq.removeEventListener('change', handleChange);
+  }, [toggleTheme]);
 
   const handleLogout = () => { logout(); navigate('/'); };
 
