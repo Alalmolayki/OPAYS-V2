@@ -3,24 +3,24 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Upload, UserCircle, LogOut,
   Rocket, ChevronLeft, ChevronRight, Menu, Bell,
-  Sun, Moon, X, School, ChevronDown,
+  Sun, Moon, X,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { avatarGradient } from '../utils/avatar';
 
 const navItems = [
-  { label: 'Dashboard',   icon: LayoutDashboard, path: '/dashboard',     roles: ['superadmin','admin','tech_teacher','branch_teacher','student','demo','graduate'] },
-  { label: 'Takımlar',    icon: Users,           path: '/teams',          roles: ['superadmin','admin','tech_teacher','branch_teacher','student','demo','graduate'] },
-  { label: 'İçe Aktar',  icon: Upload,          path: '/import',         roles: ['superadmin','admin'] },
+  { label: 'Dashboard',    icon: LayoutDashboard, path: '/dashboard', roles: ['superadmin','admin','tech_teacher','branch_teacher','student','demo','graduate'] },
+  { label: 'Takımlar',     icon: Users,           path: '/teams',     roles: ['superadmin','admin','tech_teacher','branch_teacher','student','demo','graduate'] },
+  { label: 'Kullanıcılar', icon: Users,           path: '/users',     roles: ['superadmin','admin','tech_teacher'] },
+  { label: 'İçe Aktar',   icon: Upload,          path: '/import',    roles: ['superadmin','admin'] },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [schoolDropdown, setSchoolDropdown] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, logout, schools, selectedSchoolId, selectSchool, notifications, theme, toggleTheme } = useStore();
+  const { currentUser, logout, schools, selectedSchoolId, notifications, theme, toggleTheme } = useStore();
 
   const [showNotifPopup, setShowNotifPopup] = useState(false);
   const notifPopupShown = useRef(false);
@@ -30,10 +30,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const mainScrollMap = useRef<Map<string, number>>(new Map());
   const prevPath = useRef(location.pathname);
 
-  const isSuperAdmin = currentUser?.role === 'superadmin';
-
   const unreadNotifications = notifications.filter(n =>
-    !n.read && (n.userId === currentUser?.id || (!n.userId && isSuperAdmin))
+    !n.read && (n.userId === currentUser?.id || (!n.userId && currentUser?.role === 'superadmin'))
   ).length;
 
   useEffect(() => {
@@ -83,34 +81,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      {/* School selector (superadmin only) */}
-      {!collapsed && currentUser?.role === 'superadmin' && (
-        <div className="px-3 py-3 border-b border-slate-800/60 relative">
-          <button
-            onClick={() => setSchoolDropdown(!schoolDropdown)}
-            className="w-full flex items-center gap-2 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-lg px-3 py-2 transition-colors"
-          >
-            <School size={14} className="text-cyan-400 flex-shrink-0" />
-            <span className="text-xs text-slate-300 flex-1 text-left truncate">{selectedSchool?.name || 'Okul Seç'}</span>
-            <ChevronDown size={12} className={`text-slate-500 transition-transform ${schoolDropdown ? 'rotate-180' : ''}`} />
-          </button>
-          {schoolDropdown && (
-            <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1826] border border-slate-700/60 rounded-xl shadow-xl z-50 overflow-hidden">
-              {schools.map(school => (
-                <button
-                  key={school.id}
-                  onClick={() => { selectSchool(school.id); setSchoolDropdown(false); }}
-                  className={`w-full text-left px-3 py-2.5 text-xs transition-colors ${selectedSchoolId === school.id ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-300 hover:bg-slate-800/60'}`}
-                >
-                  <p className="font-medium">{school.name}</p>
-                  <p className="text-slate-500 mt-0.5">{school.city}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Nav */}
       <nav ref={navRef} className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
         {visibleNav.map(item => {
@@ -118,7 +88,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           return (
             <button
               key={item.path}
-              onClick={() => { navigate(item.path); setMobileOpen(false); setSchoolDropdown(false); }}
+              onClick={() => { navigate(item.path); setMobileOpen(false); }}
               className={`sidebar-link w-full ${active ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}
               title={collapsed ? item.label : undefined}
             >

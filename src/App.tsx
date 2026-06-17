@@ -9,6 +9,7 @@ import TeamDetailPage from './pages/TeamDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import ImportPage from './pages/ImportPage';
 import NotificationsPage from './pages/NotificationsPage';
+import UsersPage from './pages/UsersPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const currentUser = useStore(s => s.currentUser);
@@ -48,6 +49,9 @@ export default function App() {
         } />
         <Route path="/notifications" element={
           <RequireAuth><Layout><NotificationsPage /></Layout></RequireAuth>
+        } />
+        <Route path="/users" element={
+          <RequireAdmin><Layout><UsersPage /></Layout></RequireAdmin>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
