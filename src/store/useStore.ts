@@ -407,8 +407,8 @@ export const useStore = create<AppState>()(
 
         let allowedKeys: (keyof User)[];
         if (isSelf) {
-          allowedKeys = ['bio', 'email', 'phone', 'instagram', 'skills'];
-          if (isSuper) allowedKeys.push('firstName', 'lastName', 'username');
+          allowedKeys = ['bio', 'email', 'phone', 'instagram', 'skills', 'photoUrl', 'username'];
+          if (isSuper) { allowedKeys.push('firstName', 'lastName'); }
         } else if (isStaff) {
           allowedKeys = Object.keys(updates) as (keyof User)[];
           if (!isSuper) allowedKeys = allowedKeys.filter(k => k !== 'role');
@@ -547,8 +547,24 @@ export const useStore = create<AppState>()(
           }));
           return;
         }
+        const teamForNotif = get().teams.find(t => t.id === teamId);
+        const applicant = get().users.find(u => u.id === application.userId);
+        const notifTargets = new Set<string>();
+        if (teamForNotif?.captainId) notifTargets.add(teamForNotif.captainId);
+        if (teamForNotif?.advisorId) notifTargets.add(teamForNotif.advisorId);
+        const appNotifs: Notification[] = [];
+        notifTargets.forEach(uid => {
+          if (uid !== application.userId) {
+            appNotifs.push({
+              id: nanoid(), userId: uid,
+              message: `"${teamForNotif?.name}" takımına yeni başvuru: ${applicant?.firstName} ${applicant?.lastName}`,
+              type: 'info', read: false, createdAt: new Date().toISOString(),
+            });
+          }
+        });
         set(s => ({
           teams: s.teams.map(t => t.id === teamId ? { ...t, applications: [...t.applications.filter(a => a.userId !== application.userId), application] } : t),
+          notifications: appNotifs.length > 0 ? [...s.notifications, ...appNotifs] : s.notifications,
         }));
       },
 

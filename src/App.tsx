@@ -38,7 +38,7 @@ export default function App() {
         <Route path="/teams" element={
           <RequireAuth><Layout><TeamsPage /></Layout></RequireAuth>
         } />
-        <Route path="/teams/:id" element={
+        <Route path="/teams/:slug" element={
           <RequireAuth><Layout><TeamDetailPage /></Layout></RequireAuth>
         } />
         <Route path="/profile" element={

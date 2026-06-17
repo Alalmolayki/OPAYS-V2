@@ -1,18 +1,20 @@
-import { useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, Users, UserPlus, UserMinus, Megaphone, Lock, Check, X,
   MessageSquare, Instagram, Twitter, Newspaper, Award, Plus, Edit3,
-  Image, Trophy, Handshake, Save, Search, Trash2, Camera, GraduationCap, FileText,
+  Image, Trophy, Handshake, Save, Search, Trash2, Camera, GraduationCap, FileText, ExternalLink, Download,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { slugifyTeam } from './TeamsPage';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { avatarGradient } from '../utils/avatar';
 
 export default function TeamDetailPage() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     currentUser, users, teams, selectedSchoolId,
     applyToTeam, handleTeamApplication, removeTeamMember, addTeamMember,
@@ -49,9 +51,13 @@ export default function TeamDetailPage() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
 
-  // Team info edit form (includes social media)
+  // Team info edit form (includes social media, captain, advisor)
   const [showEditTeam, setShowEditTeam] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', description: '', instagram: '', twitter: '' });
+  const [editCaptainSearch, setEditCaptainSearch] = useState('');
+  const [editSelectedCaptain, setEditSelectedCaptain] = useState<{ id: string; label: string } | null>(null);
+  const [editAdvisorSearch, setEditAdvisorSearch] = useState('');
+  const [editSelectedAdvisor, setEditSelectedAdvisor] = useState<{ id: string; label: string } | null>(null);
 
   // Recruitment open modal
   const [showOpenRecruit, setShowOpenRecruit] = useState(false);
@@ -60,8 +66,16 @@ export default function TeamDetailPage() {
   // Ejection confirm
   const [ejectConfirmId, setEjectConfirmId] = useState<string | null>(null);
 
-  const team = teams.find(t => t.id === id);
+  const team = teams.find(t => t.id === slug || slugifyTeam(t.name, t.id) === slug);
   if (!team) return <div className="card p-8 text-center text-slate-400">Takım bulunamadı.</div>;
+
+  // Auto-open apply modal when navigated with state.openApply
+  useEffect(() => {
+    if ((location.state as { openApply?: boolean })?.openApply && team.isRecruiting && currentUser?.role === 'student') {
+      setShowApply(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const captain = users.find(u => u.id === team.captainId);
   const advisor = team.advisorId ? users.find(u => u.id === team.advisorId) : null;
@@ -181,6 +195,22 @@ export default function TeamDetailPage() {
       }).slice(0, 8)
     : [];
 
+  // Captain/advisor search for edit modal
+  const schoolStudents = users.filter(u => u.schoolId === (team.schoolId || selectedSchoolId) && u.role === 'student');
+  const schoolTeachers = users.filter(u => u.schoolId === (team.schoolId || selectedSchoolId) && u.role === 'branch_teacher');
+  const editCaptainResults = editCaptainSearch.trim().length >= 1
+    ? schoolStudents.filter(u => {
+        const q = editCaptainSearch.toLowerCase();
+        return u.firstName.toLowerCase().includes(q) || u.lastName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
+      }).slice(0, 8)
+    : [];
+  const editAdvisorResults = editAdvisorSearch.trim().length >= 1
+    ? schoolTeachers.filter(u => {
+        const q = editAdvisorSearch.toLowerCase();
+        return u.firstName.toLowerCase().includes(q) || u.lastName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
+      }).slice(0, 8)
+    : [];
+
   const handleSaveTeam = (e: React.FormEvent) => {
     e.preventDefault();
     updateTeam(team.id, {
@@ -191,6 +221,8 @@ export default function TeamDetailPage() {
         instagram: editForm.instagram.replace('@', '') || undefined,
         twitter: editForm.twitter.replace('@', '') || undefined,
       },
+      ...(editSelectedCaptain ? { captainId: editSelectedCaptain.id } : {}),
+      advisorId: editSelectedAdvisor ? editSelectedAdvisor.id : (editSelectedAdvisor === null && team.advisorId ? undefined : team.advisorId),
     });
     setShowEditTeam(false);
   };
@@ -202,6 +234,10 @@ export default function TeamDetailPage() {
       instagram: team.socialMedia?.instagram || '',
       twitter: team.socialMedia?.twitter || '',
     });
+    setEditSelectedCaptain(captain ? { id: captain.id, label: `${captain.firstName} ${captain.lastName}` } : null);
+    setEditSelectedAdvisor(advisor ? { id: advisor.id, label: `${advisor.firstName} ${advisor.lastName}` } : null);
+    setEditCaptainSearch('');
+    setEditAdvisorSearch('');
     setShowEditTeam(true);
   };
 
@@ -507,13 +543,21 @@ export default function TeamDetailPage() {
                                 </p>
                               )}
                               {app.cvDataUrl && (
-                                <a
-                                  href={app.cvDataUrl}
-                                  download={`cv-${applicant.firstName}-${applicant.lastName}.pdf`}
-                                  className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 mb-2 transition-colors"
-                                >
-                                  <FileText size={11} /> CV İndir
-                                </a>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <button
+                                    onClick={() => window.open(app.cvDataUrl, '_blank')}
+                                    className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                                  >
+                                    <ExternalLink size={11} /> CV Görüntüle
+                                  </button>
+                                  <a
+                                    href={app.cvDataUrl}
+                                    download={`CV-${applicant.firstName}-${applicant.lastName}-${team.name}.pdf`}
+                                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-300 transition-colors"
+                                  >
+                                    <Download size={11} /> İndir
+                                  </a>
+                                </div>
                               )}
                               {app.status === 'pending' && (
                                 <div className="flex gap-2">
@@ -873,10 +917,10 @@ export default function TeamDetailPage() {
         </div>
       )}
 
-      {/* Edit Team Modal — includes social media */}
+      {/* Edit Team Modal — includes social media, captain, advisor */}
       {showEditTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-          <div className="card w-full max-w-md p-6 animate-slide-up">
+          <div className="card w-full max-w-md p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-white mb-5">Takım Bilgilerini Düzenle</h3>
             <form onSubmit={handleSaveTeam} className="space-y-4">
               <div>
@@ -886,6 +930,89 @@ export default function TeamDetailPage() {
               <div>
                 <label className="label">Açıklama</label>
                 <textarea value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} className="input h-24 resize-none" placeholder="Takım hakkında..." />
+              </div>
+              {/* Captain picker */}
+              <div>
+                <label className="label">Kaptan</label>
+                {editSelectedCaptain ? (
+                  <div className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${avatarGradient(editSelectedCaptain.id)}`}>
+                      {editSelectedCaptain.label.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                    </div>
+                    <span className="text-sm text-white flex-1 truncate">{editSelectedCaptain.label}</span>
+                    <button type="button" onClick={() => { setEditSelectedCaptain(null); setEditCaptainSearch(''); }} className="text-slate-500 hover:text-red-400 transition-colors">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      value={editCaptainSearch}
+                      onChange={e => setEditCaptainSearch(e.target.value)}
+                      className="input pl-9"
+                      placeholder="Kaptan ara..."
+                    />
+                    {editCaptainResults.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d1826] border border-slate-700/60 rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto">
+                        {editCaptainResults.map(u => (
+                          <button key={u.id} type="button"
+                            onClick={() => { setEditSelectedCaptain({ id: u.id, label: `${u.firstName} ${u.lastName}` }); setEditCaptainSearch(''); }}
+                            className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-800/60 transition-colors">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${avatarGradient(u.id)}`}>
+                              {u.firstName[0]}{u.lastName[0]}
+                            </div>
+                            <div>
+                              <p className="text-sm text-white">{u.firstName} {u.lastName}</p>
+                              <p className="text-xs text-slate-500">@{u.username}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Advisor picker */}
+              <div>
+                <label className="label flex items-center gap-1.5"><GraduationCap size={13} /> Danışman Öğretmen</label>
+                {editSelectedAdvisor ? (
+                  <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${avatarGradient(editSelectedAdvisor.id)}`}>
+                      {editSelectedAdvisor.label.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                    </div>
+                    <span className="text-sm text-white flex-1 truncate">{editSelectedAdvisor.label}</span>
+                    <button type="button" onClick={() => { setEditSelectedAdvisor(null); setEditAdvisorSearch(''); }} className="text-slate-500 hover:text-red-400 transition-colors">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      value={editAdvisorSearch}
+                      onChange={e => setEditAdvisorSearch(e.target.value)}
+                      className="input pl-9"
+                      placeholder="Branş öğretmeni ara..."
+                    />
+                    {editAdvisorResults.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d1826] border border-slate-700/60 rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto">
+                        {editAdvisorResults.map(u => (
+                          <button key={u.id} type="button"
+                            onClick={() => { setEditSelectedAdvisor({ id: u.id, label: `${u.firstName} ${u.lastName}` }); setEditAdvisorSearch(''); }}
+                            className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-800/60 transition-colors">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${avatarGradient(u.id)}`}>
+                              {u.firstName[0]}{u.lastName[0]}
+                            </div>
+                            <p className="text-sm text-white">{u.firstName} {u.lastName}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

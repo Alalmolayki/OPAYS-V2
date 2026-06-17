@@ -82,9 +82,9 @@ export default function ProfilePage() {
     if (isSuperAdmin) {
       updates.firstName = firstName.trim() || currentUser.firstName;
       updates.lastName = lastName.trim() || currentUser.lastName;
-      if (editUsername.trim() && editUsername.trim() !== currentUser.username) {
-        updates.username = editUsername.trim();
-      }
+    }
+    if (editUsername.trim() && editUsername.trim() !== currentUser.username) {
+      updates.username = editUsername.trim();
     }
     updateUser(currentUser.id, updates);
     setSaved(true);
@@ -244,41 +244,36 @@ export default function ProfilePage() {
           <UserCircle size={16} className="text-cyan-400" /> Bilgilerimi Düzenle
         </h2>
 
-        {/* Identity section — editable for superadmin, read-only otherwise */}
-        {isSuperAdmin ? (
-          <div className="bg-cyan-500/5 border border-cyan-500/15 rounded-xl p-4 mb-4">
-            <p className="text-xs text-cyan-400 mb-3 font-medium">Süperadmin — kimlik bilgileri düzenlenebilir</p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="label">Ad</label>
-                <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="input" placeholder="Ad" />
-              </div>
-              <div>
-                <label className="label">Soyad</label>
-                <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="input" placeholder="Soyad" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="label">Kullanıcı Adı</label>
-                <input type="text" value={editUsername} onChange={e => setEditUsername(e.target.value)} className="input" placeholder="kullanici_adi" />
-                <p className="text-xs text-slate-500 mt-1">Değiştirirseniz yeni kullanıcı adıyla giriş yapmanız gerekir.</p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-amber-500/5 border border-amber-500/15 rounded-xl p-4 mb-4">
-            <p className="text-xs text-amber-400 mb-3 font-medium">Aşağıdaki bilgiler değiştirilemez</p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="label text-slate-500">Ad Soyad</label>
+        {/* Identity section */}
+        <div className="bg-slate-900/40 border border-slate-800/60 rounded-xl p-4 mb-4">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label text-slate-500">Ad Soyad</label>
+              {isSuperAdmin ? (
+                <div className="flex gap-2">
+                  <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="input flex-1" placeholder="Ad" />
+                  <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="input flex-1" placeholder="Soyad" />
+                </div>
+              ) : (
                 <div className="input bg-slate-900/30 text-slate-500 cursor-not-allowed">{currentUser.firstName} {currentUser.lastName}</div>
+              )}
+            </div>
+            <div>
+              <label className="label">Kullanıcı Adı</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">@</span>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={e => setEditUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
+                  className="input pl-7"
+                  placeholder="kullanici_adi"
+                />
               </div>
-              <div>
-                <label className="label text-slate-500">Kullanıcı Adı</label>
-                <div className="input bg-slate-900/30 text-slate-500 cursor-not-allowed">@{currentUser.username}</div>
-              </div>
+              <p className="text-xs text-slate-600 mt-1">Değiştirirseniz yeni kullanıcı adıyla giriş yapın.</p>
             </div>
           </div>
-        )}
+        </div>
 
         <div className="space-y-4">
           <div>

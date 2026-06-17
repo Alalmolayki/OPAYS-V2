@@ -4,6 +4,14 @@ import { Users, Plus, Search, UserPlus, Lock, Megaphone, Trash2, X, GraduationCa
 import { useStore } from '../store/useStore';
 import { avatarGradient } from '../utils/avatar';
 
+export function slugifyTeam(name: string, id: string) {
+  const slug = name.toLowerCase()
+    .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+    .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `${slug}-${id.slice(0, 6)}`;
+}
+
 const PRESET_TYPES: Record<string, string> = { robotics: 'Robotik', teknofest: 'Teknofest', other: 'Diğer' };
 const PRESET_COLORS: Record<string, string> = {
   robotics: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20',
@@ -239,9 +247,9 @@ export default function TeamsPage() {
 
               {/* Actions */}
               <div className="flex gap-2">
-                <button onClick={() => navigate(`/teams/${team.id}`)} className="btn-secondary flex-1 justify-center text-sm py-2">Detay</button>
+                <button onClick={() => navigate(`/teams/${slugifyTeam(team.name, team.id)}`)} className="btn-secondary flex-1 justify-center text-sm py-2">Detay</button>
                 {!isMyTeam && team.isRecruiting && !hasApplied && currentUser?.role === 'student' && (
-                  <button onClick={() => navigate(`/teams/${team.id}`)} className="btn-primary flex-1 justify-center text-sm py-2">
+                  <button onClick={() => navigate(`/teams/${slugifyTeam(team.name, team.id)}`, { state: { openApply: true } })} className="btn-primary flex-1 justify-center text-sm py-2">
                     <UserPlus size={14} /> Başvur
                   </button>
                 )}

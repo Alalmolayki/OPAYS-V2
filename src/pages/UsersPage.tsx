@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, Search, Edit3, X, Check, Trash2, RefreshCw, Eye, Instagram, ChevronDown, UserPlus, Copy, CheckCircle, ShieldOff, ShieldX, Key } from 'lucide-react';
+import { Shield, Search, Edit3, X, Check, Trash2, RefreshCw, Eye, Instagram, ChevronDown, UserPlus, Copy, CheckCircle, ShieldOff, ShieldX, Key, AtSign } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { avatarGradient } from '../utils/avatar';
 import type { UserRole } from '../types';
@@ -65,6 +65,11 @@ export default function UsersPage() {
   const [banType, setBanType] = useState<'indefinite' | 'date'>('indefinite');
   const [banUntil, setBanUntil] = useState('');
 
+  // Username edit modal
+  const [editUsernameId, setEditUsernameId] = useState<string | null>(null);
+  const [editUsernameValue, setEditUsernameValue] = useState('');
+  const [editUsernameError, setEditUsernameError] = useState('');
+
   // Password reset modal
   const [resetPwdUserId, setResetPwdUserId] = useState<string | null>(null);
   const [resetPwdValue, setResetPwdValue] = useState('');
@@ -123,7 +128,9 @@ export default function UsersPage() {
   };
 
   const schoolUsers = users.filter(u => u.schoolId === selectedSchoolId && u.id !== currentUser?.id);
-  const schoolCaptainIds = new Set(teams.filter(t => t.schoolId === selectedSchoolId).map(t => t.captainId));
+  const schoolTeams = teams.filter(t => t.schoolId === selectedSchoolId);
+  const schoolCaptainIds = new Set(schoolTeams.map(t => t.captainId));
+  const captainTeamMap = new Map(schoolTeams.map(t => [t.captainId, t.name]));
   const filtered = schoolUsers.filter(u => {
     if (roleFilter === 'banned') return u.isBlacklisted;
     if (roleFilter === 'captain') return schoolCaptainIds.has(u.id) && !u.isBlacklisted;
@@ -172,6 +179,7 @@ export default function UsersPage() {
         <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="input sm:w-48">
           <option value="all">Tüm Roller</option>
           {(Object.keys(ROLE_LABELS) as UserRole[]).map(k => <option key={k} value={k}>{ROLE_LABELS[k]}</option>)}
+          <option value="captain">Takım Kaptanı</option>
           {isSuper && <option value="banned">🚫 Banlı Hesaplar</option>}
         </select>
       </div>
@@ -236,6 +244,9 @@ export default function UsersPage() {
                             <p className={`text-sm font-medium ${isBanned ? 'text-red-400 line-through opacity-60' : 'text-white'}`}>{user.firstName} {user.lastName}</p>
                             {isBanned && <span className="badge bg-red-500/15 text-red-400 border border-red-500/20"><ShieldOff size={9} /> Banlı</span>}
                             {onWatch && !isBanned && <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/20"><Eye size={9} /></span>}
+                            {roleFilter === 'captain' && captainTeamMap.has(user.id) && (
+                              <span className="badge bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px]">{captainTeamMap.get(user.id)}</span>
+                            )}
                           </div>
                           <p className="text-xs text-slate-500">@{user.username}</p>
                         </div>
@@ -279,6 +290,11 @@ export default function UsersPage() {
                         <button onClick={() => setDetailUser(user.id)} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30 flex items-center justify-center transition-colors" title="Detay">
                           <ChevronDown size={13} />
                         </button>
+                        {canManage && (
+                          <button onClick={() => { setEditUsernameId(user.id); setEditUsernameValue(user.username); setEditUsernameError(''); }} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-purple-400 hover:border-purple-500/30 flex items-center justify-center transition-colors" title="Kullanıcı Adı Değiştir">
+                            <AtSign size={13} />
+                          </button>
+                        )}
                         {isSuper && editingId !== user.id && (
                           <button onClick={() => { setEditingId(user.id); setEditRole(user.role); }} className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30 flex items-center justify-center transition-colors" title="Rolü Düzenle">
                             <Edit3 size={13} />
@@ -532,9 +548,65 @@ export default function UsersPage() {
         );
       })()}
 
+      {/* Username Edit Modal */}
+      {editUsernameId && (() => {
+        const targetUser = users.find(u => u.id === editUsernameId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+            <div className="card w-full max-w-sm p-6 animate-slide-up">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center">
+                    <AtSign size={15} className="text-purple-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white">Kullanıcı Adı Değiştir</h3>
+                </div>
+                <button onClick={() => setEditUsernameId(null)} className="text-slate-500 hover:text-slate-300"><X size={18} /></button>
+              </div>
+              <p className="text-slate-400 text-sm mb-4">
+                <span className="text-white font-medium">{targetUser?.firstName} {targetUser?.lastName}</span>
+              </p>
+              <div className="mb-4">
+                <label className="label">Yeni Kullanıcı Adı</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">@</span>
+                  <input
+                    type="text"
+                    value={editUsernameValue}
+                    onChange={e => { setEditUsernameValue(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setEditUsernameError(''); }}
+                    className="input pl-7"
+                    placeholder="yeni_kullanici_adi"
+                    autoFocus
+                  />
+                </div>
+                {editUsernameError && <p className="text-xs text-red-400 mt-1">{editUsernameError}</p>}
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setEditUsernameId(null)} className="btn-secondary flex-1 justify-center">İptal</button>
+                <button
+                  disabled={!editUsernameValue.trim() || editUsernameValue === targetUser?.username}
+                  onClick={() => {
+                    const newUn = editUsernameValue.trim();
+                    if (users.some(u => u.username === newUn && u.id !== editUsernameId)) {
+                      setEditUsernameError('Bu kullanıcı adı zaten alınmış.');
+                      return;
+                    }
+                    updateUser(editUsernameId!, { username: newUn });
+                    setEditUsernameId(null);
+                  }}
+                  className="btn-primary flex-1 justify-center"
+                >
+                  <AtSign size={14} /> Güncelle
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Registration Code Modal */}
       {showAddUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="card w-full max-w-md p-6 animate-slide-up">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-white">Kullanıcı Ekle</h3>
