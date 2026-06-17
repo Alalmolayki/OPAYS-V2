@@ -40,7 +40,7 @@ const genPassword = () => {
 };
 
 export default function UsersPage() {
-  const { currentUser, users, teams, selectedSchoolId, updateUser, deleteUser, resetUserProfile, watchList, addToWatchList, createRegistrationCode, graduates, changePassword } = useStore();
+  const { currentUser, users, codes, teams, selectedSchoolId, updateUser, deleteUser, resetUserProfile, watchList, addToWatchList, createRegistrationCode, graduates, changePassword } = useStore();
 
   const isSuper = currentUser?.role === 'superadmin';
   const canManage = currentUser && ['superadmin', 'admin', 'tech_teacher', 'branch_teacher'].includes(currentUser.role);
@@ -62,6 +62,7 @@ export default function UsersPage() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [addForm, setAddForm] = useState({ firstName: '', lastName: '', role: 'student' as UserRole, schoolId: selectedSchoolId, graduationYear: String(new Date().getFullYear()) });
   const [addResult, setAddResult] = useState<{ code: string } | null>(null);
+  const [addError, setAddError] = useState('');
   const [copied, setCopied] = useState(false);
 
   // Ban modal
@@ -95,14 +96,19 @@ export default function UsersPage() {
 
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
+    setAddError('');
+    const firstName = addForm.firstName.trim();
+    const lastName = addForm.lastName.trim();
     const schoolId = addForm.role === 'admin' ? (addForm.schoolId || selectedSchoolId) : selectedSchoolId;
-    const code = createRegistrationCode({
-      firstName: addForm.firstName.trim(),
-      lastName: addForm.lastName.trim(),
-      role: addForm.role,
-      schoolId,
-      graduationYear: addForm.role === 'graduate' ? addForm.graduationYear : undefined,
-    });
+    const fullName = `${firstName} ${lastName}`.toLowerCase();
+
+    const dupUser = users.find(u => u.schoolId === schoolId && `${u.firstName} ${u.lastName}`.toLowerCase() === fullName);
+    if (dupUser) { setAddError('Bu ad ve soyada sahip bir kullanıcı zaten mevcut.'); return; }
+
+    const dupCode = codes.find(c => c.schoolId === schoolId && c.studentName.toLowerCase() === fullName && !c.isUsed);
+    if (dupCode) { setAddError('Bu isim için zaten kullanılmamış bir kayıt kodu mevcut.'); return; }
+
+    const code = createRegistrationCode({ firstName, lastName, role: addForm.role, schoolId, graduationYear: addForm.role === 'graduate' ? addForm.graduationYear : undefined });
     setAddResult({ code });
   };
 
@@ -120,6 +126,7 @@ export default function UsersPage() {
   const closeAdd = () => {
     setShowAddUser(false);
     setAddResult(null);
+    setAddError('');
     setAddForm({ firstName: '', lastName: '', role: 'student', schoolId: selectedSchoolId, graduationYear: String(currentYear) });
     setCopied(false);
   };
@@ -633,11 +640,11 @@ export default function UsersPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="label">Ad</label>
-                    <input type="text" value={addForm.firstName} onChange={e => setAddForm(f => ({ ...f, firstName: e.target.value }))} className="input" required placeholder="Ad" />
+                    <input type="text" value={addForm.firstName} onChange={e => { setAddError(''); setAddForm(f => ({ ...f, firstName: e.target.value })); }} className="input" required placeholder="Ad" />
                   </div>
                   <div>
                     <label className="label">Soyad</label>
-                    <input type="text" value={addForm.lastName} onChange={e => setAddForm(f => ({ ...f, lastName: e.target.value }))} className="input" required placeholder="Soyad" />
+                    <input type="text" value={addForm.lastName} onChange={e => { setAddError(''); setAddForm(f => ({ ...f, lastName: e.target.value })); }} className="input" required placeholder="Soyad" />
                   </div>
                 </div>
                 <div>
@@ -654,6 +661,7 @@ export default function UsersPage() {
                     </select>
                   </div>
                 )}
+                {addError && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{addError}</p>}
                 <div className="flex gap-3 pt-1">
                   <button type="button" onClick={closeAdd} className="btn-secondary flex-1 justify-center">İptal</button>
                   <button type="submit" className="btn-primary flex-1 justify-center"><Key size={15} /> Kod Oluştur</button>

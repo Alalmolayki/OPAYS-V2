@@ -40,6 +40,7 @@ export interface Notification {
   type: 'warning' | 'info' | 'success';
   read: boolean;
   createdAt: string;
+  link?: string;
 }
 
 interface AppState {
@@ -101,7 +102,7 @@ interface AppState {
   deleteCodeSession: (sessionId: string) => void;
   deleteCode: (code: string) => void;
   markNotificationRead: (id: string) => void;
-  addUserNotification: (userId: string, message: string, type: 'warning' | 'info' | 'success') => void;
+  addUserNotification: (userId: string, message: string, type: 'warning' | 'info' | 'success', link?: string) => void;
 
   // WatchList
   addToWatchList: (userId: string, reason: string, addedBy: string) => void;
@@ -496,9 +497,9 @@ export const useStore = create<AppState>()(
         notifications: s.notifications.map(n => n.id === id ? { ...n, read: true } : n),
       })),
 
-      addUserNotification: (userId, message, type) => {
+      addUserNotification: (userId, message, type, link?) => {
         const notif: Notification = {
-          id: nanoid(), userId, message, type, read: false, createdAt: new Date().toISOString(),
+          id: nanoid(), userId, message, type, read: false, createdAt: new Date().toISOString(), link,
         };
         set(s => ({ notifications: [...s.notifications, notif] }));
       },
@@ -568,6 +569,7 @@ export const useStore = create<AppState>()(
               id: nanoid(), userId: uid,
               message: `"${teamForNotif?.name}" takımına yeni başvuru: ${applicant?.firstName} ${applicant?.lastName}`,
               type: 'info', read: false, createdAt: new Date().toISOString(),
+              link: teamForNotif ? `/teams/${teamForNotif.id}` : undefined,
             });
           }
         });
@@ -593,10 +595,10 @@ export const useStore = create<AppState>()(
         if (status === 'approved' && team) {
           get().addTimelineEntry({ userId, type: 'team', referenceId: teamId, title: `${team.name}'a Katıldı`, description: 'Başvurusu kabul edilerek takıma eklendi.', isVerified: true, date: new Date().toISOString() });
           get().updatePoints(userId, 100);
-          get().addUserNotification(userId, `"${team.name}" takımına başvurunuz kabul edildi! Takıma hoş geldiniz. 🎉`, 'success');
+          get().addUserNotification(userId, `"${team.name}" takımına başvurunuz kabul edildi! Takıma hoş geldiniz. 🎉`, 'success', `/teams/${teamId}`);
         }
         if (status === 'rejected' && team) {
-          get().addUserNotification(userId, `"${team.name}" takım başvurunuz olumsuz sonuçlanmıştır.`, 'warning');
+          get().addUserNotification(userId, `"${team.name}" takım başvurunuz olumsuz sonuçlanmıştır.`, 'warning', `/teams/${teamId}`);
         }
       },
 

@@ -44,6 +44,12 @@
 
   html {
     background-color: var(--c-base);
+    min-height: 100%;
+  }
+
+  #root {
+    background-color: var(--c-base);
+    min-height: 100vh;
   }
 
   body {

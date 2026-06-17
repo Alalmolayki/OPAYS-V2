@@ -170,7 +170,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--c-base)' }}>
       {/* Desktop Sidebar */}
       <aside className={`hidden lg:flex flex-col border-r transition-all duration-300 flex-shrink-0 relative ${collapsed ? 'w-16' : 'w-56'} ${isLight ? 'lm-sidebar light bg-slate-50 border-slate-200' : 'bg-[#080e1c] border-slate-800/60'}`}>
         <SidebarContent />

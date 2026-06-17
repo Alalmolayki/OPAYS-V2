@@ -1,10 +1,12 @@
-import { Bell, Check, CheckCheck, MessageSquare } from 'lucide-react';
+import { Bell, Check, CheckCheck, MessageSquare, ExternalLink } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
 export default function NotificationsPage() {
   const { currentUser, notifications, markNotificationRead } = useStore();
+  const navigate = useNavigate();
   if (!currentUser) return null;
 
   const isSuperAdmin = currentUser.role === 'superadmin';
@@ -68,12 +70,15 @@ export default function NotificationsPage() {
           {myNotifications.map(n => (
             <div
               key={n.id}
-              onClick={() => !n.read && markNotificationRead(n.id)}
+              onClick={() => {
+                if (!n.read) markNotificationRead(n.id);
+                if (n.link) navigate(n.link);
+              }}
               className={`flex items-start gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
                 !n.read
                   ? 'bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/15'
                   : 'bg-slate-900/40 border-slate-800/60 hover:bg-slate-900/60'
-              }`}
+              } ${n.link ? 'hover:border-cyan-500/30' : ''}`}
             >
               {/* Type indicator dot */}
               <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5 ${dotStyle[n.type] || 'bg-slate-400'}`} />
@@ -102,13 +107,14 @@ export default function NotificationsPage() {
                 })()}
               </div>
 
-              {/* Unread indicator */}
-              <div className="flex-shrink-0">
+              {/* Unread indicator / link hint */}
+              <div className="flex-shrink-0 flex flex-col items-center gap-1.5">
                 {!n.read ? (
                   <div className="w-2 h-2 bg-cyan-400 rounded-full mt-1.5" title="Okunmadı" />
                 ) : (
                   <Check size={14} className="text-slate-700 mt-0.5" />
                 )}
+                {n.link && <ExternalLink size={12} className="text-slate-600" />}
               </div>
             </div>
           ))}
