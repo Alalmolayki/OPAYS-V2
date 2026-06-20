@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, Users, UserPlus, UserMinus, Megaphone, Lock, Check, X,
   MessageSquare, Instagram, Twitter, Newspaper, Award, Plus, Edit3,
-  Image, Trophy, Handshake, Save, Search, Trash2, Camera, GraduationCap, FileText, ExternalLink, Download,
+  Image, Trophy, Handshake, Save, Search, Trash2, Camera, GraduationCap, FileText, ExternalLink, Download, LogOut,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { slugifyTeam } from './TeamsPage';
@@ -20,7 +20,7 @@ export default function TeamDetailPage() {
     applyToTeam, handleTeamApplication, removeTeamMember, addTeamMember,
     toggleRecruiting, addTeamNews, addTeamAchievement, updateTeam,
     removeTeamNews, removeTeamAchievement,
-    createAnnouncement,
+    createAnnouncement, requestLeaveTeam, handleLeaveRequest,
   } = useStore();
 
   const [applyNote, setApplyNote] = useState('');
@@ -66,6 +66,10 @@ export default function TeamDetailPage() {
   // Ejection confirm
   const [ejectConfirmId, setEjectConfirmId] = useState<string | null>(null);
 
+  // Leave request
+  const [showLeaveRequest, setShowLeaveRequest] = useState(false);
+  const [leaveReason, setLeaveReason] = useState('');
+
   const team = teams.find(t => t.id === slug || slugifyTeam(t.name, t.id) === slug);
   if (!team) return <div className="card p-8 text-center text-slate-400">Takım bulunamadı.</div>;
 
@@ -90,9 +94,22 @@ export default function TeamDetailPage() {
     });
   const isAdmin = currentUser && ['superadmin', 'admin', 'tech_teacher'].includes(currentUser.role);
   const isCaptain = currentUser?.id === team.captainId;
+  const isAdvisor = currentUser && currentUser.id === team.advisorId;
   const isMember = currentUser && team.members.includes(currentUser.id);
-  const hasApplied = currentUser && team.applications.some(a => a.userId === currentUser.id && a.status !== 'rejected');
   const canManage = isAdmin || isCaptain;
+  // Advisor can manage members (remove/eject) but not full team settings
+  const canManageMembers = canManage || isAdvisor;
+
+  // The applicant's own application for the CURRENT recruiting round only —
+  // a rejection (or pending review) blocks re-applying only until recruiting
+  // is closed and reopened (which mints a new recruitingRoundId).
+  const myCurrentApplication = currentUser
+    ? team.applications.find(a => a.userId === currentUser.id && a.roundId === team.recruitingRoundId)
+    : undefined;
+  const hasApplied = !!myCurrentApplication;
+
+  const myLeaveRequest = currentUser ? (team.leaveRequests || []).find(r => r.userId === currentUser.id) : undefined;
+  const pendingLeaveRequests = (team.leaveRequests || []).filter(r => r.status === 'pending');
 
   // Deduplicate achievements by id
   const allAchievements = team.achievements || [];
@@ -348,8 +365,20 @@ export default function TeamDetailPage() {
               {!isMember && team.isRecruiting && !hasApplied && currentUser?.role === 'student' && (
                 <button onClick={() => setShowApply(true)} className="btn-primary"><UserPlus size={16} /> Başvur</button>
               )}
-              {hasApplied && !isMember && (
+              {hasApplied && !isMember && myCurrentApplication?.status === 'pending' && (
                 <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/20 px-3 py-1.5 text-sm">Başvurun İnceleniyor</span>
+              )}
+              {hasApplied && !isMember && myCurrentApplication?.status === 'rejected' && (
+                <span className="badge bg-red-500/15 text-red-400 border border-red-500/20 px-3 py-1.5 text-sm">Başvurun Reddedildi</span>
+              )}
+              {isMember && !isCaptain && currentUser?.role === 'student' && (
+                myLeaveRequest?.status === 'pending' ? (
+                  <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/20 px-3 py-1.5 text-sm">Ayrılma Talebiniz İnceleniyor</span>
+                ) : (
+                  <button onClick={() => setShowLeaveRequest(true)} className="btn-secondary text-red-400 border-red-500/30">
+                    <LogOut size={16} /> Takımdan Ayrıl
+                  </button>
+                )
               )}
               {canManage && (
                 <>
@@ -385,7 +414,7 @@ export default function TeamDetailPage() {
             <div className="flex items-center gap-2 mb-4">
               <Users size={16} className="text-cyan-400" />
               <h2 className="font-semibold text-white">Üyeler ({team.members.length})</h2>
-              {canManage && (
+              {canManageMembers && (
                 <button
                   onClick={() => setShowAddMember(v => !v)}
                   className="ml-auto w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/25 flex items-center justify-center transition-colors"
@@ -396,7 +425,7 @@ export default function TeamDetailPage() {
               )}
             </div>
             {/* Direct member add search */}
-            {showAddMember && canManage && (
+            {showAddMember && canManageMembers && (
               <div className="mb-4 relative">
                 <div className="relative">
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -452,7 +481,7 @@ export default function TeamDetailPage() {
                       <p className="text-sm font-medium text-slate-200 truncate">{m.firstName} {m.lastName}</p>
                       <p className="text-xs text-slate-500">{isCapt ? 'Kaptan' : m.class ? `${m.class}/${m.section}` : 'Üye'}</p>
                     </div>
-                    {canManage && !isCapt && (
+                    {canManageMembers && !isCapt && (
                       ejectConfirmId === m.id ? (
                         <div className="flex items-center gap-1">
                           <button
@@ -502,6 +531,39 @@ export default function TeamDetailPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-slate-300 truncate">{m.firstName} {m.lastName}</p>
                         <p className="text-xs text-slate-600">{m.class ? `${m.class}/${m.section}` : `@${m.username}`}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Leave requests */}
+          {canManageMembers && pendingLeaveRequests.length > 0 && (
+            <div className="card p-5">
+              <h2 className="font-semibold text-white mb-4">Ayrılma Talepleri ({pendingLeaveRequests.length})</h2>
+              <div className="space-y-3">
+                {pendingLeaveRequests.map(req => {
+                  const u = users.find(usr => usr.id === req.userId);
+                  if (!u) return null;
+                  return (
+                    <div key={req.userId} className="border border-slate-800/60 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${avatarGradient(u.id)}`}>
+                          {u.firstName[0]}{u.lastName[0]}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-white">{u.firstName} {u.lastName}</p>
+                          <p className="text-xs text-slate-500">{format(new Date(req.requestedAt), 'd MMM yyyy', { locale: tr })}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400 bg-slate-900/40 rounded-lg p-2 mb-2 flex gap-1.5">
+                        <MessageSquare size={11} className="text-slate-600 mt-0.5 flex-shrink-0" /> {req.reason}
+                      </p>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleLeaveRequest(team.id, req.userId, 'approved')} className="btn-primary text-xs py-1 px-3 flex-1 justify-center"><Check size={12} /> Onayla</button>
+                        <button onClick={() => handleLeaveRequest(team.id, req.userId, 'rejected')} className="btn-danger text-xs py-1 px-3 flex-1 justify-center"><X size={12} /> Reddet</button>
                       </div>
                     </div>
                   );
@@ -823,6 +885,35 @@ export default function TeamDetailPage() {
             <div className="flex gap-3">
               <button onClick={() => { setShowApply(false); setApplyNote(''); setApplyCvDataUrl(''); setApplyCvName(''); }} className="btn-secondary flex-1 justify-center">İptal</button>
               <button onClick={handleApply} className="btn-primary flex-1 justify-center">Başvur</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Request Modal */}
+      {showLeaveRequest && currentUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="card w-full max-w-sm p-6 animate-slide-up">
+            <h3 className="text-lg font-bold text-white mb-1">Takımdan Ayrılma Talebi</h3>
+            <p className="text-slate-400 text-sm mb-4">"{team.name}" takımından ayrılma sebebinizi belirtin.</p>
+            <div className="mb-5">
+              <label className="label">Ayrılma Sebebi</label>
+              <textarea value={leaveReason} onChange={e => setLeaveReason(e.target.value)} className="input h-24 resize-none" required placeholder="Neden ayrılmak istiyorsunuz?" />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setShowLeaveRequest(false); setLeaveReason(''); }} className="btn-secondary flex-1 justify-center">İptal</button>
+              <button
+                onClick={() => {
+                  if (!leaveReason.trim()) return;
+                  requestLeaveTeam(team.id, currentUser.id, leaveReason.trim());
+                  setShowLeaveRequest(false);
+                  setLeaveReason('');
+                }}
+                disabled={!leaveReason.trim()}
+                className="btn-danger flex-1 justify-center"
+              >
+                Talep Gönder
+              </button>
             </div>
           </div>
         </div>

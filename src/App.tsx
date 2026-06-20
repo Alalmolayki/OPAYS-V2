@@ -12,6 +12,8 @@ import ProfilePage from './pages/ProfilePage';
 import ImportPage from './pages/ImportPage';
 import NotificationsPage from './pages/NotificationsPage';
 import UsersPage from './pages/UsersPage';
+import LeaderboardPage from './pages/LeaderboardPage';
+import WatchListPage from './pages/WatchListPage';
 
 function useHydrated() {
   const [hydrated, setHydrated] = useState(() => useStore.persist.hasHydrated());
@@ -84,6 +86,12 @@ export default function App() {
         } />
         <Route path="/users" element={
           <RequireStaff><Layout><UsersPage /></Layout></RequireStaff>
+        } />
+        <Route path="/leaderboard" element={
+          <RequireAuth><Layout><LeaderboardPage /></Layout></RequireAuth>
+        } />
+        <Route path="/watchlist" element={
+          <RequireStaff><Layout><WatchListPage /></Layout></RequireStaff>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

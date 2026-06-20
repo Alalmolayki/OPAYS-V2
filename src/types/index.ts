@@ -73,7 +73,26 @@ export interface TeamApplication {
   status: 'pending' | 'approved' | 'rejected';
   appliedAt: string;
   roundTitle?: string;
+  roundId?: string; // ties application to a specific recruiting round so re-applying requires a new round
   cvDataUrl?: string; // base64 PDF uploaded by applicant
+}
+
+export interface TeamLeaveRequest {
+  userId: string;
+  reason: string;
+  requestedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface TeamCreationRequest {
+  id: string;
+  schoolId: string;
+  requesterId: string; // student
+  teacherId: string;   // branch_teacher or tech_teacher chosen by the student
+  teamName: string;
+  description: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
 }
 
 export interface TeamNews {
@@ -112,7 +131,9 @@ export interface Team {
   socialMedia?: { instagram?: string; twitter?: string; linkedin?: string };
   isRecruiting: boolean;
   recruitingTitle?: string; // title of the currently open (or most recent) recruitment round
+  recruitingRoundId?: string; // regenerated every time recruiting is (re)opened
   applications: TeamApplication[];
+  leaveRequests?: TeamLeaveRequest[];
   news: TeamNews[];
   achievements: TeamAchievement[];
   createdAt: string;

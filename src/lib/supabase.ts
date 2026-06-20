@@ -43,7 +43,7 @@ export function createSupabaseStorage<T>(): PersistStorage<T> {
     getItem: async (name) => {
       const { data, error } = await supabase
         .from('app_state')
-        .select('value')
+        .select('value, updated_at')
         .eq('key', name)
         .maybeSingle();
 
@@ -51,35 +51,48 @@ export function createSupabaseStorage<T>(): PersistStorage<T> {
         console.error('[Supabase storage] getItem error:', error.message);
       }
 
-      // ── If Supabase has data, use it ────────────────────────────────────────
-      if (data?.value) {
+      const localRaw = localStorage.getItem(name);
+      const localTsRaw = localStorage.getItem(`${name}__ts`);
+      const localTs = localTsRaw ? Number(localTsRaw) : 0;
+      const supabaseTs = data?.updated_at ? new Date(data.updated_at).getTime() : 0;
+
+      // ── If Supabase has data and it's at least as fresh as our local write,
+      //    use it. Otherwise prefer localStorage — this guards against reading
+      //    back stale Supabase data when this tab's own upsert (e.g. right after
+      //    applying to a team) hasn't landed yet on a quick refresh.
+      if (data?.value && supabaseTs >= localTs) {
         try {
           return JSON.parse(data.value) as StorageValue<T>;
+        } catch {
+          // fall through to localStorage
+        }
+      }
+
+      if (localRaw) {
+        if (!data?.value) {
+          // Supabase empty → migrate (first-time setup)
+          console.info('[Supabase storage] Migrating localStorage → Supabase');
+          supabase
+            .from('app_state')
+            .upsert(
+              { key: name, value: localRaw, updated_at: new Date().toISOString() },
+              { onConflict: 'key' },
+            )
+            .then(({ error: e }) => {
+              if (e) console.error('[Supabase storage] migration error:', e.message);
+              else console.info('[Supabase storage] Migration complete');
+            });
+        }
+        try {
+          return JSON.parse(localRaw) as StorageValue<T>;
         } catch {
           return null;
         }
       }
 
-      // ── Supabase empty → try localStorage migration ─────────────────────────
-      // This handles the transition when Supabase is first configured: existing
-      // state in localStorage is pushed to Supabase so other devices can see it.
-      const localRaw = localStorage.getItem(name);
-      if (localRaw) {
-        console.info('[Supabase storage] Migrating localStorage → Supabase');
-        // Push local data to Supabase in the background
-        supabase
-          .from('app_state')
-          .upsert(
-            { key: name, value: localRaw, updated_at: new Date().toISOString() },
-            { onConflict: 'key' },
-          )
-          .then(({ error: e }) => {
-            if (e) console.error('[Supabase storage] migration error:', e.message);
-            else console.info('[Supabase storage] Migration complete');
-          });
-
+      if (data?.value) {
         try {
-          return JSON.parse(localRaw) as StorageValue<T>;
+          return JSON.parse(data.value) as StorageValue<T>;
         } catch {
           return null;
         }
@@ -90,11 +103,14 @@ export function createSupabaseStorage<T>(): PersistStorage<T> {
 
     setItem: async (name, value) => {
       const serialized = JSON.stringify(value);
-      // Keep localStorage in sync as a local cache (helps with migration detection)
+      const ts = Date.now();
+      // Keep localStorage in sync as a local cache (helps with migration detection
+      // and lets getItem trust the most recent write even if Supabase lags behind)
       localStorage.setItem(name, serialized);
+      localStorage.setItem(`${name}__ts`, String(ts));
 
       const { error } = await supabase.from('app_state').upsert(
-        { key: name, value: serialized, updated_at: new Date().toISOString() },
+        { key: name, value: serialized, updated_at: new Date(ts).toISOString() },
         { onConflict: 'key' },
       );
       if (error) console.error('[Supabase storage] setItem error:', error.message);

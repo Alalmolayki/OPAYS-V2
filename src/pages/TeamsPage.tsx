@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Search, UserPlus, Lock, Megaphone, Trash2, X, GraduationCap } from 'lucide-react';
+import { Users, Plus, Search, UserPlus, Lock, Megaphone, Trash2, X, GraduationCap, Send, Check } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { avatarGradient } from '../utils/avatar';
 
@@ -24,7 +24,7 @@ const getTypeLabel = (type: string) => PRESET_TYPES[type] || type;
 const getTypeColor = (type: string) => PRESET_COLORS[type] || DEFAULT_CUSTOM_COLOR;
 
 export default function TeamsPage() {
-  const { currentUser, teams, users, selectedSchoolId, createTeam, deleteTeam, toggleRecruiting } = useStore();
+  const { currentUser, teams, users, selectedSchoolId, createTeam, deleteTeam, toggleRecruiting, teamRequests, requestTeamCreation, handleTeamRequest } = useStore();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<string>('all');
@@ -41,6 +41,10 @@ export default function TeamsPage() {
   const [createMembers, setCreateMembers] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState('');
   const [showMemberSearch, setShowMemberSearch] = useState(false);
+
+  // Team creation request modal (students)
+  const [showRequest, setShowRequest] = useState(false);
+  const [requestForm, setRequestForm] = useState({ teamName: '', description: '', teacherRole: 'branch_teacher' as 'branch_teacher' | 'tech_teacher', teacherId: '' });
 
   // School students & captains that admin can assign as captain
   const schoolStudents = users.filter(u => u.schoolId === selectedSchoolId && u.role === 'student');
@@ -75,6 +79,14 @@ export default function TeamsPage() {
   const isAdmin = currentUser && ['superadmin', 'admin', 'tech_teacher'].includes(currentUser.role);
   const isBranchTeacher = currentUser?.role === 'branch_teacher';
   const canPickCaptain = !!(isAdmin || isBranchTeacher);
+  const isTeacher = currentUser && ['branch_teacher', 'tech_teacher'].includes(currentUser.role);
+
+  // Team creation request: teachers of the chosen role at this school
+  const requestTeacherOptions = users.filter(u => u.schoolId === selectedSchoolId && u.role === requestForm.teacherRole);
+  // Requests directed at the current teacher
+  const myIncomingRequests = isTeacher
+    ? teamRequests.filter(r => r.teacherId === currentUser!.id && r.status === 'pending')
+    : [];
 
   const schoolTeams = teams.filter(t => t.schoolId === selectedSchoolId);
   const isCaptain = currentUser ? schoolTeams.some(t => t.captainId === currentUser.id) : false;
@@ -125,6 +137,24 @@ export default function TeamsPage() {
     resetCreateForm();
   };
 
+  const closeRequest = () => {
+    setShowRequest(false);
+    setRequestForm({ teamName: '', description: '', teacherRole: 'branch_teacher', teacherId: '' });
+  };
+
+  const handleSubmitRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || !requestForm.teacherId) return;
+    requestTeamCreation({
+      requesterId: currentUser.id,
+      teacherId: requestForm.teacherId,
+      teamName: requestForm.teamName.trim(),
+      description: requestForm.description.trim(),
+      schoolId: selectedSchoolId,
+    });
+    closeRequest();
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -141,7 +171,45 @@ export default function TeamsPage() {
             <Plus size={16} /> Yeni Takım
           </button>
         )}
+        {currentUser?.role === 'student' && (
+          <button onClick={() => setShowRequest(true)} className="btn-secondary text-cyan-400 border-cyan-500/30">
+            <Send size={16} /> Takım Talebi Oluştur
+          </button>
+        )}
       </div>
+
+      {/* Incoming team creation requests (teachers) */}
+      {isTeacher && myIncomingRequests.length > 0 && (
+        <div className="card p-5">
+          <h2 className="font-semibold text-white mb-4">Sana Gelen Takım Talepleri ({myIncomingRequests.length})</h2>
+          <div className="space-y-3">
+            {myIncomingRequests.map(req => {
+              const requester = users.find(u => u.id === req.requesterId);
+              if (!requester) return null;
+              return (
+                <div key={req.id} className="border border-slate-800/60 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${avatarGradient(requester.id)}`}>
+                      {requester.firstName[0]}{requester.lastName[0]}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{requester.firstName} {requester.lastName}</p>
+                      <p className="text-xs text-slate-500">"{req.teamName}" takımı kurmak istiyor</p>
+                    </div>
+                  </div>
+                  {req.description && (
+                    <p className="text-xs text-slate-400 bg-slate-900/40 rounded-lg p-2 mb-2">{req.description}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button onClick={() => handleTeamRequest(req.id, 'approved')} className="btn-primary text-xs py-1 px-3 flex-1 justify-center"><Check size={12} /> Onayla</button>
+                    <button onClick={() => handleTeamRequest(req.id, 'rejected')} className="btn-danger text-xs py-1 px-3 flex-1 justify-center"><X size={12} /> Reddet</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -167,7 +235,7 @@ export default function TeamsPage() {
         {filtered.map(team => {
           const captain = users.find(u => u.id === team.captainId);
           const isMyTeam = currentUser && team.members.includes(currentUser.id);
-          const hasApplied = currentUser && team.applications.some(a => a.userId === currentUser.id);
+          const hasApplied = currentUser && team.applications.some(a => a.userId === currentUser.id && a.roundId === team.recruitingRoundId);
 
           return (
             <div key={team.id} className="card-hover p-5 flex flex-col">
@@ -492,6 +560,58 @@ export default function TeamsPage() {
               <div className="flex gap-3">
                 <button type="button" onClick={resetCreateForm} className="btn-secondary flex-1 justify-center">İptal</button>
                 <button type="submit" className="btn-primary flex-1 justify-center">Oluştur</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Team Creation Request Modal (students) */}
+      {showRequest && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="card w-full max-w-md p-6 animate-slide-up">
+            <h2 className="text-lg font-bold text-white mb-1">Takım Kurma Talebi</h2>
+            <p className="text-sm text-slate-400 mb-5">Talebiniz seçtiğiniz öğretmene doğrudan iletilecek; öğretmen onaylarsa takım kurulacak ve danışmanınız olacak.</p>
+            <form onSubmit={handleSubmitRequest} className="space-y-4">
+              <div>
+                <label className="label">Takım Adı</label>
+                <input type="text" value={requestForm.teamName} onChange={e => setRequestForm(f => ({ ...f, teamName: e.target.value }))} className="input" required placeholder="Takım adı..." />
+              </div>
+              <div>
+                <label className="label">Açıklama</label>
+                <textarea value={requestForm.description} onChange={e => setRequestForm(f => ({ ...f, description: e.target.value }))} className="input h-24 resize-none" required placeholder="Takım hakkında kısa açıklama..." />
+              </div>
+              <div>
+                <label className="label flex items-center gap-1.5"><GraduationCap size={13} /> Öğretmen Türü</label>
+                <select
+                  value={requestForm.teacherRole}
+                  onChange={e => setRequestForm(f => ({ ...f, teacherRole: e.target.value as 'branch_teacher' | 'tech_teacher', teacherId: '' }))}
+                  className="input"
+                >
+                  <option value="branch_teacher">Branş Öğretmeni</option>
+                  <option value="tech_teacher">Teknoloji Öğretmeni</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Öğretmen</label>
+                <select
+                  value={requestForm.teacherId}
+                  onChange={e => setRequestForm(f => ({ ...f, teacherId: e.target.value }))}
+                  className="input"
+                  required
+                >
+                  <option value="" disabled>Öğretmen seçin...</option>
+                  {requestTeacherOptions.map(t => (
+                    <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>
+                  ))}
+                </select>
+                {requestTeacherOptions.length === 0 && (
+                  <p className="text-xs text-slate-600 mt-1.5">Bu okulda bu role sahip bir öğretmen bulunamadı.</p>
+                )}
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={closeRequest} className="btn-secondary flex-1 justify-center">İptal</button>
+                <button type="submit" className="btn-primary flex-1 justify-center"><Send size={15} /> Talep Gönder</button>
               </div>
             </form>
           </div>

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Upload, UserCircle, LogOut,
   Rocket, ChevronLeft, ChevronRight, Menu, Bell,
-  Sun, Moon, X,
+  Sun, Moon, X, Trophy, Eye,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { avatarGradient } from '../utils/avatar';
@@ -12,6 +12,8 @@ const navItems = [
   { label: 'Dashboard',    icon: LayoutDashboard, path: '/dashboard', roles: ['superadmin','admin','tech_teacher','branch_teacher','student','demo','graduate'] },
   { label: 'Takımlar',     icon: Users,           path: '/teams',     roles: ['superadmin','admin','tech_teacher','branch_teacher','student','demo','graduate'] },
   { label: 'Kullanıcılar', icon: Users,           path: '/users',     roles: ['superadmin','admin','tech_teacher','branch_teacher'] },
+  { label: 'Liderlik Tablosu', icon: Trophy,      path: '/leaderboard', roles: ['superadmin','admin','tech_teacher','branch_teacher','student','demo','graduate'] },
+  { label: 'Gözlem Listesi', icon: Eye,           path: '/watchlist', roles: ['superadmin','admin','tech_teacher','branch_teacher'] },
   { label: 'İçe Aktar',   icon: Upload,          path: '/import',    roles: ['superadmin','admin'] },
 ];
 

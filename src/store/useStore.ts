@@ -6,6 +6,7 @@ import type {
   TimelineEntry, WatchListEntry, InventoryItem, InventoryLoan, Graduate,
   School, TeamApplication, TaskApplicant, TeamNews, TeamAchievement, UserRole,
   Feedback, FixedAsset, FixedAssetAssignment, InventoryRoom, InventoryCabinet,
+  TeamLeaveRequest, TeamCreationRequest,
 } from '../types';
 import {
   INITIAL_USERS, INITIAL_CODES, INITIAL_TEAMS, INITIAL_PROJECTS,
@@ -64,6 +65,7 @@ interface AppState {
   inventoryRooms: InventoryRoom[];
   graduates: Graduate[];
   notifications: Notification[];
+  teamRequests: TeamCreationRequest[];
   runtimePasswords: Record<string, string>;
 
   // Theme
@@ -122,6 +124,10 @@ interface AppState {
   addTeamAchievement: (teamId: string, ach: Omit<TeamAchievement, 'id'>) => void;
   removeTeamNews: (teamId: string, newsId: string) => void;
   removeTeamAchievement: (teamId: string, achievementId: string) => void;
+  requestLeaveTeam: (teamId: string, userId: string, reason: string) => void;
+  handleLeaveRequest: (teamId: string, userId: string, status: 'approved' | 'rejected') => void;
+  requestTeamCreation: (params: { requesterId: string; teacherId: string; teamName: string; description: string; schoolId: string }) => void;
+  handleTeamRequest: (requestId: string, status: 'approved' | 'rejected') => void;
 
   // Projects
   createProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -209,6 +215,7 @@ const defaultState = {
   inventoryRooms: [] as InventoryRoom[],
   graduates: INITIAL_GRADUATES,
   notifications: [] as Notification[],
+  teamRequests: [] as TeamCreationRequest[],
   fixedAssets: [] as FixedAsset[],
   fixedAssetAssignments: [] as FixedAssetAssignment[],
   fixedAssetManagers: [] as string[],
@@ -536,8 +543,9 @@ export const useStore = create<AppState>()(
         teams: s.teams.map(t => t.id === id ? {
           ...t,
           isRecruiting: !t.isRecruiting,
-          // When opening, save the title; when closing, keep the old title for history
-          ...(!t.isRecruiting && title ? { recruitingTitle: title } : {}),
+          // When opening: save the title and mint a new round id so previously
+          // rejected/pending applicants regain the right to re-apply.
+          ...(!t.isRecruiting ? { recruitingRoundId: nanoid(), ...(title ? { recruitingTitle: title } : {}) } : {}),
         } : t),
       })),
 
@@ -559,6 +567,7 @@ export const useStore = create<AppState>()(
         }
         const teamForNotif = get().teams.find(t => t.id === teamId);
         const applicant = get().users.find(u => u.id === application.userId);
+        const appWithRound: TeamApplication = { ...application, roundId: teamForNotif?.recruitingRoundId };
         const notifTargets = new Set<string>();
         if (teamForNotif?.captainId) notifTargets.add(teamForNotif.captainId);
         if (teamForNotif?.advisorId) notifTargets.add(teamForNotif.advisorId);
@@ -574,7 +583,7 @@ export const useStore = create<AppState>()(
           }
         });
         set(s => ({
-          teams: s.teams.map(t => t.id === teamId ? { ...t, applications: [...t.applications.filter(a => a.userId !== application.userId), application] } : t),
+          teams: s.teams.map(t => t.id === teamId ? { ...t, applications: [...t.applications.filter(a => a.userId !== application.userId), appWithRound] } : t),
           notifications: appNotifs.length > 0 ? [...s.notifications, ...appNotifs] : s.notifications,
         }));
       },
@@ -643,6 +652,76 @@ export const useStore = create<AppState>()(
       removeTeamAchievement: (teamId, achId) => set(s => ({
         teams: s.teams.map(t => t.id === teamId ? { ...t, achievements: (t.achievements || []).filter(a => a.id !== achId) } : t),
       })),
+
+      requestLeaveTeam: (teamId, userId, reason) => {
+        const team = get().teams.find(t => t.id === teamId);
+        if (!team) return;
+        const requester = get().users.find(u => u.id === userId);
+        const req: TeamLeaveRequest = { userId, reason, requestedAt: new Date().toISOString(), status: 'pending' };
+        set(s => ({
+          teams: s.teams.map(t => t.id === teamId ? {
+            ...t,
+            leaveRequests: [...(t.leaveRequests || []).filter(r => r.userId !== userId), req],
+          } : t),
+        }));
+        const notifTargets = new Set<string>();
+        if (team.captainId !== userId) notifTargets.add(team.captainId);
+        if (team.advisorId) notifTargets.add(team.advisorId);
+        notifTargets.forEach(uid => {
+          get().addUserNotification(uid, `${requester?.firstName} ${requester?.lastName} "${team.name}" takımından ayrılma talebinde bulundu.`, 'info', `/teams/${teamId}`);
+        });
+      },
+
+      handleLeaveRequest: (teamId, userId, status) => {
+        const team = get().teams.find(t => t.id === teamId);
+        set(s => ({
+          teams: s.teams.map(t => t.id === teamId ? {
+            ...t,
+            leaveRequests: (t.leaveRequests || []).map(r => r.userId === userId ? { ...r, status } : r),
+          } : t),
+        }));
+        if (!team) return;
+        if (status === 'approved') {
+          get().removeTeamMember(teamId, userId, false);
+          get().addUserNotification(userId, `"${team.name}" takımından ayrılma talebiniz onaylandı.`, 'info', `/teams/${teamId}`);
+        } else {
+          get().addUserNotification(userId, `"${team.name}" takımından ayrılma talebiniz reddedildi.`, 'warning', `/teams/${teamId}`);
+        }
+      },
+
+      requestTeamCreation: ({ requesterId, teacherId, teamName, description, schoolId }) => {
+        const requester = get().users.find(u => u.id === requesterId);
+        const req: TeamCreationRequest = {
+          id: nanoid(), schoolId, requesterId, teacherId, teamName, description,
+          status: 'pending', createdAt: new Date().toISOString(),
+        };
+        set(s => ({ teamRequests: [...s.teamRequests, req] }));
+        get().addUserNotification(teacherId, `${requester?.firstName} ${requester?.lastName} "${teamName}" adlı bir takım kurma talebinde bulundu.`, 'info', '/teams');
+      },
+
+      handleTeamRequest: (requestId, status) => {
+        const req = get().teamRequests.find(r => r.id === requestId);
+        if (!req) return;
+        set(s => ({ teamRequests: s.teamRequests.map(r => r.id === requestId ? { ...r, status } : r) }));
+        if (status === 'approved') {
+          const gradients = ['from-cyan-500 to-blue-600', 'from-orange-500 to-red-600', 'from-purple-500 to-indigo-600', 'from-green-500 to-teal-600'];
+          get().createTeam({
+            name: req.teamName,
+            type: 'other',
+            captainId: req.requesterId,
+            advisorId: req.teacherId,
+            description: req.description,
+            logoInitials: req.teamName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+            logoColor: gradients[Math.floor(Math.random() * gradients.length)],
+            socialMedia: {},
+            isRecruiting: false,
+            schoolId: req.schoolId,
+          } as any);
+          get().addUserNotification(req.requesterId, `"${req.teamName}" takım talebiniz onaylandı ve takım oluşturuldu! 🎉`, 'success', '/teams');
+        } else {
+          get().addUserNotification(req.requesterId, `"${req.teamName}" takım talebiniz reddedildi.`, 'warning');
+        }
+      },
 
       createProject: (project) => {
         const cu = get().currentUser;
